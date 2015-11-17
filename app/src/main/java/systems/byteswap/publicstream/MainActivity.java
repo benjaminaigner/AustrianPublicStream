@@ -1,5 +1,6 @@
 package systems.byteswap.publicstream;
 
+import android.content.Context;
 import android.content.Intent;
 import android.media.audiofx.BassBoost;
 import android.os.Bundle;
@@ -8,21 +9,37 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ExpandableListView;
 import android.widget.Toast;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Timer;
+import java.util.TimerTask;
 
-//TODO: Liste...
 //TODO: Mediaplayer unten
-//TODO: Erstes Listenitem: LIVE
+//TODO: Live -> button clicklistener + mediaplayer laden
 
 public class MainActivity extends AppCompatActivity {
+    Timer listTimer;
+    ProgramExpandableAdapter adapter;
+    private ArrayList<ORFParser.ORFProgram> programListToday;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus2;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus3;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus4;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus5;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
+
+    public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,14 +48,6 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
 
         //TODO: übergangslösung, eigentlich Async Task...
         //Siehe: https://stackoverflow.com/questions/13136539/caused-by-android-os-networkonmainthreadexception
@@ -46,23 +55,97 @@ public class MainActivity extends AppCompatActivity {
             StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
             StrictMode.setThreadPolicy(policy);
         }
+
+        //create expandable list view / set properties
+        ExpandableListView expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
+        expandableList.setDividerHeight(2);
+        expandableList.setGroupIndicator(null);
+        expandableList.setClickable(true);
+
+        //Load the list initially...
+
+        //Create calendar object (today)
+        Calendar today = new GregorianCalendar();
+        //create parser object
         ORFParser parser = new ORFParser();
 
-        Calendar today = new GregorianCalendar(2015,11,13);
-        parser.getProgramsForDay(today.getTime());
+        programListToday = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus1 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus2 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus3 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus4 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus5 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus6 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus7 = parser.getProgramsForDay(today.getTime());
 
+        // Create the Adapter
+        adapter = new ProgramExpandableAdapter(programListToday, programListTodayMinus1,
+                programListTodayMinus2, programListTodayMinus3, programListTodayMinus4, programListTodayMinus5,
+                programListTodayMinus6, programListTodayMinus7);
+
+        adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+
+        // Set the Adapter to expandableList
+        expandableList.setAdapter(adapter);
+        //TODO:
+        //expandableList.setOnChildClickListener(this.programClickListener);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        //TODO: start timer to refetch the list
+        listTimer = new Timer();
+
+        //schedule a timer
+        listTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                TimerMethod();
+            }
+
+        }, 0, REFETCH_LIST_INTERVAL_SECONDS*1000);
+    }
+
+    private void TimerMethod()
+    {
+        //Create calendar object (today)
+        Calendar today = new GregorianCalendar();
+        //create parser object
+        ORFParser parser = new ORFParser();
+
+        programListToday = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus1 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus2 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus3 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus4 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus5 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus6 = parser.getProgramsForDay(today.getTime());
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        programListTodayMinus7 = parser.getProgramsForDay(today.getTime());
+
+        adapter.update(programListToday, programListTodayMinus1,
+                programListTodayMinus2, programListTodayMinus3, programListTodayMinus4, programListTodayMinus5,
+                programListTodayMinus6, programListTodayMinus7);
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        //TODO: stop timer to refetch the list
+        //Stop the regular list update
+        listTimer.cancel();
     }
 
     @Override

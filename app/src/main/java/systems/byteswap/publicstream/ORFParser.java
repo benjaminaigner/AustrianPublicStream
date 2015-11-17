@@ -85,14 +85,15 @@ public class ORFParser {
         dayCalendar.setTime(day);
 
         try {
-            this.fetchURL(new URL(ORF_FULL_BASE_URL + dayCalendar.get(Calendar.YEAR) + dayCalendar.get(Calendar.MONTH) + dayCalendar.get(Calendar.DAY_OF_MONTH)));
+            String fullURLString = ORF_FULL_BASE_URL + dayCalendar.get(Calendar.YEAR) + String.valueOf(Integer.valueOf(dayCalendar.get(Calendar.MONTH))+1) + dayCalendar.get(Calendar.DAY_OF_MONTH);
+            this.fetchURL(new URL(fullURLString));
         } catch (IOException e) {
             e.printStackTrace();
         }
         return this.programList;
     }
 
-    private class ORFProgram {
+    public class ORFProgram {
         public int id;
         public String length;
         public String time;
