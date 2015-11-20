@@ -33,7 +33,6 @@
 
         <service
             android:name=".MediaService"
-            android:process=":PublicStreamMediaProcess"
             android:enabled="true"
             android:exported="true" >
         </service>

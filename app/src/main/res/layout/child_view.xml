@@ -35,6 +35,9 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="5dp"
         android:textSize="16sp"
+        android:focusableInTouchMode="false"
+        android:clickable="false"
+        android:focusable="false"
         />
     <View
         android:layout_width="match_parent"

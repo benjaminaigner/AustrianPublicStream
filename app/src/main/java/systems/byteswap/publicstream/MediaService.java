@@ -2,55 +2,125 @@ package systems.byteswap.publicstream;
 
 import android.app.Service;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.IBinder;
+import android.widget.Toast;
+
+import java.io.IOException;
 
 //TODO: alles testen & machen
-//TODO: seekbar updaten...
+//TODO: seekbar updaten..., time setzen &
+//TODO: am ende des streams -> service beenden...
 
 public class MediaService extends Service implements MediaPlayer.OnPreparedListener,MediaPlayer.OnErrorListener {
-    private static final String ACTION_PLAY = "systems.byteswap.action.PLAY";
-    private static final String ACTION_PAUSE = "systems.byteswap.action.PAUSE";
-    private static final String ACTION_STOP = "systems.byteswap.action.STOP";
-    private static final String ACTION_SETTIME = "systems.byteswap.action.SETTIME";
+    public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAY";
+    public final static String ACTION_STOP = "systems.byteswap.action.STOP";
+    public final static String ACTION_SETTIME = "systems.byteswap.action.SETTIME";
+    public final static String ACTION_LOAD = "systems.byteswap.action.LOAD";
 
-    MediaPlayer mMediaPlayer = null;
+    public final static String MEDIA_STATE_IDLE = "systems.byteswap.mediastate.IDLE";
+    public final static String MEDIA_STATE_PLAYING = "systems.byteswap.mediastate.PLAYING";
+    public final static String MEDIA_STATE_PAUSED = "systems.byteswap.mediastate.PAUSED";
+    public final static String MEDIA_STATE_PREPARING = "systems.byteswap.mediastate.PREPARING";
+
+    private MediaPlayer mMediaPlayer = null;
+    private String mState = MEDIA_STATE_IDLE;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mMediaPlayer = new MediaPlayer();
+        mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        mMediaPlayer.setOnPreparedListener(this);
+        mMediaPlayer.setOnErrorListener(this);
+    }
 
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        throw new UnsupportedOperationException("Not yet implemented");
+        return new LocalBinder<MediaService>(this);
     }
 
-    /**
-     * Binder to access the media service
-     */
-    public class MediaBinder extends Binder {
-        MediaService getService() {
-            return MediaService.this;
-        }
+    public MediaPlayer getMediaPlayer() {
+        return mMediaPlayer;
     }
 
-
-
-    public int onCommand(Intent intent, String action) {
-        switch(action) {
-            //TODO: mediaplayer steuern
-            case ACTION_PLAY:
-                mMediaPlayer.setOnPreparedListener(this);
-                mMediaPlayer.prepareAsync(); // prepare async to not block main thread
+    public boolean onCommand(String command, String parameter) {
+        switch(command) {
+            case ACTION_PLAY_PAUSE:
+                switch(mState) {
+                    case MEDIA_STATE_PAUSED:
+                        mMediaPlayer.start();
+                        mState = MEDIA_STATE_PLAYING;
+                        break;
+                    case MEDIA_STATE_PLAYING:
+                        mMediaPlayer.pause();
+                        mState = MEDIA_STATE_PAUSED;
+                        break;
+                }
                 break;
-            case ACTION_PAUSE:
+            case ACTION_LOAD:
+                try {
+                    switch(mState) {
+                        //reset the mediaplayer if anything is running...
+                        case MEDIA_STATE_PLAYING:
+                        case MEDIA_STATE_PAUSED:
+                        case MEDIA_STATE_PREPARING:
+                            mMediaPlayer.reset();
+                            mState = MEDIA_STATE_IDLE;
+                            break;
+                        default:
+                            break;
+                    }
+                    mMediaPlayer.setDataSource(parameter);
+                    mMediaPlayer.prepareAsync();
+                    mState = MEDIA_STATE_PREPARING;
+                } catch (IOException e) {
+                    mMediaPlayer.reset();
+                    mState = MEDIA_STATE_IDLE;
+                    Toast.makeText(MediaService.this, "Ups, URL nicht gültig...", Toast.LENGTH_SHORT).show();
+                }
                 break;
             case ACTION_SETTIME:
                 break;
-            case ACTION_STOP:
-                break;
             default:
-                break;
+                return false;
+
         }
-        return 0;
+        return true;
+        /*
+        switch(mediaPlayerState) {
+                        //idle, prepare live
+                        case MEDIA_STATE_IDLE:
+                            mediaPlayer.setDataSource(ORFParser.ORF_LIVE_URL);
+                            mediaPlayer.prepareAsync();
+                            mediaPlayerState = MEDIA_STATE_PLAYING_LIVE;
+                            break;
+                        //already live, do nothing...
+                        case MEDIA_STATE_PLAYING_LIVE:
+                            break;
+                        //ondemand: stop mediaplayer and re-prepare
+                        case MEDIA_STATE_PLAYING_ONDEMAND:
+                            mediaPlayer.stop();
+                            mediaPlayer.setDataSource(ORFParser.ORF_LIVE_URL);
+                            mediaPlayer.prepareAsync();
+                            mediaPlayerState = MEDIA_STATE_PLAYING_LIVE;
+                            break;
+                        default:
+                            Toast.makeText(MainActivity.this, "Uiuiui, statemachine Fehler...", Toast.LENGTH_SHORT).show();
+                            break;
+                    }
+
+         */
+    }
+
+    @Override
+    public void onDestroy() {
+        if(mMediaPlayer != null) {
+            mMediaPlayer.release();
+            mMediaPlayer = null;
+        }
     }
 
     @Override
@@ -60,6 +130,7 @@ public class MediaService extends Service implements MediaPlayer.OnPreparedListe
 
     /** Called when MediaPlayer is ready */
     public void onPrepared(MediaPlayer player) {
+            mState = MEDIA_STATE_PLAYING;
             player.start();
         }
 }

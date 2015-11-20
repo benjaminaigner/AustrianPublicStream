@@ -24,6 +24,7 @@ import java.util.GregorianCalendar;
 public class ORFParser {
     private ArrayList<ORFProgram> programList;
     public static String ORF_FULL_BASE_URL = "http://oe1.orf.at/programm/konsole/tag/";
+    public static String ORF_LIVE_URL = "http://mp3stream3.apasf.apa.at:8000/;stream.mp3";
 
     private String fetchURL(URL orfURL) throws IOException {
         //flag of being in the program list

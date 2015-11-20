@@ -1,9 +1,16 @@
 package systems.byteswap.publicstream;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
+import android.media.AudioManager;
+import android.media.Image;
+import android.media.MediaPlayer;
+import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -16,6 +23,10 @@ import android.widget.ExpandableListView;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -30,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     ProgramExpandableAdapter adapter;
     ExpandableListView expandableList;
     final Handler handler = new Handler();
-    private MediaService mBoundService;
+    MediaService mService;
 
 
     private ArrayList<ORFParser.ORFProgram> programListToday;
@@ -44,7 +55,18 @@ public class MainActivity extends AppCompatActivity {
 
     public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
 
+
     public boolean hasChanged = false;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            mService = ((LocalBinder<MediaService>) service).getService();
+        }
+
+        public void onServiceDisconnected(ComponentName className) {
+            // As our service is in the same process, this should never be called
+        }
+    };
 
 
     @Override
@@ -55,7 +77,8 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         //start the mediaplayer service
-        startService(new Intent(this, MainActivity.class));
+        Intent mMediaServiceIntent = new Intent(this, MediaService.class);
+        bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
 
         //create expandable list view / set properties
         expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
@@ -71,22 +94,14 @@ public class MainActivity extends AppCompatActivity {
         // Set the Adapter to expandableList
         expandableList.setAdapter(adapter);
 
-        expandableList.setOnChildClickListener(new ExpandableListView.OnChildClickListener() {
-            @Override
-            public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
-                Log.e("PUBLICSTREAM", "Should load ondemand stream...");
-                //TODO: mediaplayer -> load ondemand...
-                return false;
-            }
-        });
-
         //add a click listener to the "Live" button
         Button buttonLive = (Button) findViewById(R.id.buttonLive);
         buttonLive.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.e("PUBLICSTREAM", "Should load live stream...");
-                //TODO: mediaplayer -> load live...
+                mService.onCommand(MediaService.ACTION_LOAD,ORFParser.ORF_LIVE_URL);
+                TextView text = (TextView)findViewById(R.id.textViewCurrentStream);
+                text.setText("LIVE");
             }
         });
 
@@ -95,8 +110,7 @@ public class MainActivity extends AppCompatActivity {
         buttonPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.e("PUBLICSTREAM", "Should play/pause the current stream...");
-                //TODO: mediaplayer -> play/pause...
+                mService.onCommand(MediaService.ACTION_PLAY_PAUSE,"");
             }
         });
 
@@ -104,8 +118,7 @@ public class MainActivity extends AppCompatActivity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                Log.e("PUBLICSTREAM", "Should seek current stream: " + progress);
-                //TODO: mediaplayer -> seek
+                mService.onCommand(MediaService.ACTION_SETTIME,String.valueOf(progress));
             }
 
             @Override
@@ -120,11 +133,11 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    //TODO: entfernen und oben einfügen...
+    //listener for list items clicks...
     public void programClickListener(ORFParser.ORFProgram child) {
         TextView streamtext = (TextView)findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
-        Log.e("PUBLICSTREAM","Should start a stream...");
+        mService.onCommand(MediaService.ACTION_LOAD, child.url);
     }
 
     @Override
@@ -239,6 +252,11 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unbindService(mConnection);
+    }
 
     /**
      * @param item Menu item, given by Android
@@ -262,3 +280,4 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 }
+

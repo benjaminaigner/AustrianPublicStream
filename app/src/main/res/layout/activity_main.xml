@@ -55,10 +55,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight = "0"
-                android:layout_gravity="bottom" />
-            <!-- TODO:Bild... -->
-            <!--android:src="@drawable/album_icon"
-            android:background="@drawable/round_button" -->
+                android:layout_gravity="bottom"
+                android:src="@drawable/ic_av_pause_circle_outline"
+                />
             <SeekBar
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
