@@ -1,7 +1,5 @@
 package systems.byteswap.publicstream;
 
-import android.app.Activity;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,44 +14,16 @@ import java.util.GregorianCalendar;
  * Expandable list adapter, to show the program list
  */
 
-//TODO: clicklistener
-    //TODO: grafisch etwas aufpeppen...
+//TODO: bei click farbig hinterlegen...
 public class ProgramExpandableAdapter extends BaseExpandableListAdapter
 {
 
-    private Activity activity;
+    private MainActivity activity;
     private LayoutInflater inflater;
 
-    private ArrayList<ORFParser.ORFProgram> listToday;
-    private ArrayList<ORFParser.ORFProgram> listTodayMinus1;
-    private ArrayList<ORFParser.ORFProgram> listTodayMinus2;
-    private ArrayList<ORFParser.ORFProgram> listTodayMinus3;
-    private ArrayList<ORFParser.ORFProgram> listTodayMinus4;
-    private ArrayList<ORFParser.ORFProgram> listTodayMinus5;
-    private ArrayList<ORFParser.ORFProgram> listTodayMinus6;
-    private ArrayList<ORFParser.ORFProgram> listTodayMinus7;
+    private ArrayList<ORFParser.ORFProgram> listPrograms[] = new ArrayList[8];
 
-    // constructor
-    public ProgramExpandableAdapter(ArrayList<ORFParser.ORFProgram> programListToday,
-                                    ArrayList<ORFParser.ORFProgram> programListTodayMinus1,
-                                    ArrayList<ORFParser.ORFProgram> programListTodayMinus2,
-                                    ArrayList<ORFParser.ORFProgram> programListTodayMinus3,
-                                    ArrayList<ORFParser.ORFProgram> programListTodayMinus4,
-                                    ArrayList<ORFParser.ORFProgram> programListTodayMinus5,
-                                    ArrayList<ORFParser.ORFProgram> programListTodayMinus6,
-                                    ArrayList<ORFParser.ORFProgram> programListTodayMinus7)
-    {
-        listToday = programListToday;
-        listTodayMinus1 = programListTodayMinus1;
-        listTodayMinus2 = programListTodayMinus2;
-        listTodayMinus3 = programListTodayMinus3;
-        listTodayMinus4 = programListTodayMinus4;
-        listTodayMinus5 = programListTodayMinus5;
-        listTodayMinus6 = programListTodayMinus6;
-        listTodayMinus7 = programListTodayMinus7;
-    }
-
-    public void setInflater(LayoutInflater inflater, Activity activity)
+    public void setInflater(LayoutInflater inflater, MainActivity activity)
     {
         this.inflater = inflater;
         this.activity = activity;
@@ -65,34 +35,10 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     public View getChildView(int groupPosition, final int childPosition, boolean isLastChild, View convertView, ViewGroup parent)
     {
         final ArrayList<ORFParser.ORFProgram> child;
-        switch(groupPosition) {
-            case 0:
-                child = listToday;
-                break;
-            case 1:
-                child = listTodayMinus1;
-                break;
-            case 2:
-                child = listTodayMinus2;
-                break;
-            case 3:
-                child = listTodayMinus3;
-                break;
-            case 4:
-                child = listTodayMinus4;
-                break;
-            case 5:
-                child = listTodayMinus5;
-                break;
-            case 6:
-                child = listTodayMinus6;
-                break;
-            case 7:
-                child = listTodayMinus7;
-                break;
-            default:
-                child = null;
-                break;
+        if(listPrograms != null && listPrograms[groupPosition] != null) {
+            child = listPrograms[groupPosition];
+        } else {
+            child = null;
         }
 
         TextView textView = null;
@@ -112,7 +58,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
 
             @Override
             public void onClick(View view) {
-                Log.e("PUBLICSTREAM","Click: " + child.get(childPosition).shortTitle);
+                activity.programClickListener(child.get(childPosition));
             }
         });
         return convertView;
@@ -134,44 +80,32 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
 
         TextView itemName = (TextView) convertView.findViewById(R.id.dateName);
 
-        //TODO: richtiges datum einfügen...
         switch(groupPosition) {
             case 0:
-                itemName.setText("Heute " + listToday.size() + " Beiträge");
+                if(listPrograms != null && listPrograms[groupPosition] != null) {
+                    itemName.setText("Heute: " + listPrograms[groupPosition].size() + " Beiträge");
+                } else {
+                    itemName.setText("Heute: 0 Beiträge");
+                }
                 break;
             case 1:
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                itemName.setText(df.format("dd.MM.yyyy", today).toString() + " " + listTodayMinus1.size() + " Beiträge");
-                break;
             case 2:
-                today.add(Calendar.DAY_OF_MONTH,-2);
-                itemName.setText(df.format("dd.MM.yyyy", today).toString() + " " + listTodayMinus2.size() + " Beiträge");
-                break;
             case 3:
-                today.add(Calendar.DAY_OF_MONTH,-3);
-                itemName.setText(df.format("dd.MM.yyyy", today).toString() + " " + listTodayMinus3.size() + " Beiträge");
-                break;
             case 4:
-                today.add(Calendar.DAY_OF_MONTH,-4);
-                itemName.setText(df.format("dd.MM.yyyy", today).toString() + " " + listTodayMinus4.size() + " Beiträge");
-                break;
             case 5:
-                today.add(Calendar.DAY_OF_MONTH,-5);
-                itemName.setText(df.format("dd.MM.yyyy", today).toString() + " " + listTodayMinus5.size() + " Beiträge");
-                break;
             case 6:
-                today.add(Calendar.DAY_OF_MONTH,-6);
-                itemName.setText(df.format("dd.MM.yyyy", today).toString() + " " + listTodayMinus6.size() + " Beiträge");
-                break;
             case 7:
-                today.add(Calendar.DAY_OF_MONTH,-7);
-                itemName.setText(df.format("dd.MM.yyyy", today).toString() + " " + listTodayMinus7.size() + " Beiträge");
+                today.add(Calendar.DAY_OF_MONTH,-groupPosition);
+                if(listPrograms != null && listPrograms[groupPosition] != null) {
+                    itemName.setText(df.format("dd.MM.yyyy", today).toString() + ": " + listPrograms[groupPosition].size() + " Beiträge");
+                } else {
+                    itemName.setText(df.format("dd.MM.yyyy", today).toString() + ": 0 Beiträge");
+                }
                 break;
-
-
+            default:
+                itemName.setText("???");
+                break;
         }
-        //convertView.setChecked(isExpanded);
-
         return convertView;
     }
 
@@ -190,23 +124,21 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     @Override
     public int getChildrenCount(int groupPosition)
     {
+
         switch(groupPosition) {
             case 0:
-                return listToday.size();
             case 1:
-                return listTodayMinus1.size();
             case 2:
-                return listTodayMinus2.size();
             case 3:
-                return listTodayMinus3.size();
             case 4:
-                return listTodayMinus4.size();
             case 5:
-                return listTodayMinus5.size();
             case 6:
-                return listTodayMinus6.size();
             case 7:
-                return listTodayMinus7.size();
+                if(listPrograms != null && listPrograms[groupPosition] != null) {
+                    return listPrograms[groupPosition].size();
+                } else {
+                    return 0;
+                }
             default:
                 return 0;
 
@@ -252,7 +184,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     @Override
     public boolean isChildSelectable(int groupPosition, int childPosition)
     {
-        return false;
+        return true;
     }
 
     public void update(ArrayList<ORFParser.ORFProgram> programListToday,
@@ -263,13 +195,14 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
                        ArrayList<ORFParser.ORFProgram> programListTodayMinus5,
                        ArrayList<ORFParser.ORFProgram> programListTodayMinus6,
                        ArrayList<ORFParser.ORFProgram> programListTodayMinus7) {
-        listToday = programListToday;
-        listTodayMinus1 = programListTodayMinus1;
-        listTodayMinus2 = programListTodayMinus2;
-        listTodayMinus3 = programListTodayMinus3;
-        listTodayMinus4 = programListTodayMinus4;
-        listTodayMinus5 = programListTodayMinus5;
-        listTodayMinus6 = programListTodayMinus6;
-        listTodayMinus7 = programListTodayMinus7;
+        listPrograms[0] = programListToday;
+        listPrograms[1] = programListTodayMinus1;
+        listPrograms[2] = programListTodayMinus2;
+        listPrograms[3] = programListTodayMinus3;
+        listPrograms[4] = programListTodayMinus4;
+        listPrograms[5] = programListTodayMinus5;
+        listPrograms[6] = programListTodayMinus6;
+        listPrograms[7] = programListTodayMinus7;
     }
+
 }

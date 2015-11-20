@@ -27,10 +27,53 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:textSize="20sp"
-            android:text="Live"/>
+            android:text="Live"
+            android:id="@+id/buttonLive"
+            android:layout_weight = "0"/>
         <ExpandableListView
             android:id="@+id/expandableProgramList"
             android:layout_width="fill_parent"
-            android:layout_height="fill_parent" />
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+
+        <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textStyle="bold"
+            android:text="Kein geladener Beitrag"
+            android:id="@+id/textViewCurrentStream"
+            android:layout_gravity="bottom"
+            android:layout_weight = "0"/>
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/buttonPause"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight = "0"
+                android:layout_gravity="bottom" />
+            <!-- TODO:Bild... -->
+            <!--android:src="@drawable/album_icon"
+            android:background="@drawable/round_button" -->
+            <SeekBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight = "1"
+                android:id="@+id/seekBar"
+                android:layout_gravity="bottom"
+                />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:text="0:00/0:00"
+                android:id="@+id/textViewTime"
+                android:layout_gravity="bottom"
+                android:layout_weight = "0"/>
+        </LinearLayout>
     </LinearLayout>
 </android.support.design.widget.CoordinatorLayout>
