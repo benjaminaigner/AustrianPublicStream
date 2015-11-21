@@ -4,16 +4,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.media.AudioManager;
-import android.media.Image;
-import android.media.MediaPlayer;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
@@ -23,12 +18,11 @@ import android.widget.ExpandableListView;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import java.io.IOException;
-import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -38,10 +32,13 @@ import java.util.TimerTask;
 public class MainActivity extends AppCompatActivity {
     Timer listTimer;
     Timer programDataTimer;
+    Timer seekTimer;
     ProgramExpandableAdapter adapter;
     ExpandableListView expandableList;
     final Handler handler = new Handler();
     MediaService mService;
+    int currentTime;
+    int currentDuration;
 
 
     private ArrayList<ORFParser.ORFProgram> programListToday;
@@ -110,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
         buttonPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.onCommand(MediaService.ACTION_PLAY_PAUSE,"");
+                mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
             }
         });
 
@@ -118,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                mService.onCommand(MediaService.ACTION_SETTIME,String.valueOf(progress));
+                mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf(progress));
             }
 
             @Override
@@ -131,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+
     }
 
     //listener for list items clicks...
@@ -146,6 +144,7 @@ public class MainActivity extends AppCompatActivity {
 
         listTimer = new Timer();
         programDataTimer = new Timer();
+        seekTimer = new Timer();
 
         programDataTimer.schedule(new TimerTask() {
             @Override
@@ -222,6 +221,57 @@ public class MainActivity extends AppCompatActivity {
             }
 
         }, 0, 2000);
+
+        //schedule a timer for the time update
+        seekTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                handler.post(new Runnable() {
+                    public void run() {
+                        if(mService != null) {
+                            TextView time = (TextView)findViewById(R.id.textViewTime);
+                            SimpleDateFormat formatter = new SimpleDateFormat("mm:ss");
+                            int timeStamp = mService.getCurrentPosition();
+                            String dateString;
+
+                            switch(timeStamp) {
+                                //stopped/preparing... -> time: 0
+                                case -1:
+                                    dateString = formatter.format(new Date(0));
+                                    break;
+                                //pause: no change...
+                                case -2:
+                                    dateString = formatter.format(new Date(currentTime));
+                                    break;
+                                //Playing...
+                                default:
+                                    dateString = formatter.format(new Date(timeStamp));
+                                    currentTime = timeStamp;
+                                    break;
+                            }
+                            dateString += "/";
+
+                            timeStamp = mService.getDuration();
+                            switch(timeStamp) {
+                                case -1:
+                                    dateString += "00:00";
+                                    break;
+                                case -2:
+                                    dateString += formatter.format(new Date(currentDuration));
+                                    break;
+                                default:
+                                    dateString += formatter.format(new Date(timeStamp));
+                                    currentDuration = timeStamp;
+                                    break;
+                            }
+
+                            time.setText(dateString);
+                        }
+                    }
+                });
+            }
+
+        }, 0, 500);
     }
 
 

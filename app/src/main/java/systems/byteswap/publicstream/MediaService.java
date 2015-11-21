@@ -10,9 +10,8 @@ import android.widget.Toast;
 
 import java.io.IOException;
 
-//TODO: alles testen & machen
-//TODO: seekbar updaten..., time setzen &
 //TODO: am ende des streams -> service beenden...
+//TODO: duration anders erledigen...
 
 public class MediaService extends Service implements MediaPlayer.OnPreparedListener,MediaPlayer.OnErrorListener {
     public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAY";
@@ -89,30 +88,6 @@ public class MediaService extends Service implements MediaPlayer.OnPreparedListe
 
         }
         return true;
-        /*
-        switch(mediaPlayerState) {
-                        //idle, prepare live
-                        case MEDIA_STATE_IDLE:
-                            mediaPlayer.setDataSource(ORFParser.ORF_LIVE_URL);
-                            mediaPlayer.prepareAsync();
-                            mediaPlayerState = MEDIA_STATE_PLAYING_LIVE;
-                            break;
-                        //already live, do nothing...
-                        case MEDIA_STATE_PLAYING_LIVE:
-                            break;
-                        //ondemand: stop mediaplayer and re-prepare
-                        case MEDIA_STATE_PLAYING_ONDEMAND:
-                            mediaPlayer.stop();
-                            mediaPlayer.setDataSource(ORFParser.ORF_LIVE_URL);
-                            mediaPlayer.prepareAsync();
-                            mediaPlayerState = MEDIA_STATE_PLAYING_LIVE;
-                            break;
-                        default:
-                            Toast.makeText(MainActivity.this, "Uiuiui, statemachine Fehler...", Toast.LENGTH_SHORT).show();
-                            break;
-                    }
-
-         */
     }
 
     @Override
@@ -130,7 +105,29 @@ public class MediaService extends Service implements MediaPlayer.OnPreparedListe
 
     /** Called when MediaPlayer is ready */
     public void onPrepared(MediaPlayer player) {
-            mState = MEDIA_STATE_PLAYING;
-            player.start();
+        mState = MEDIA_STATE_PLAYING;
+        player.start();
+    }
+
+    public int getDuration() {
+        switch(mState) {
+            case MEDIA_STATE_PLAYING:
+                return mMediaPlayer.getDuration();
+            case MEDIA_STATE_PAUSED:
+                return -2;
+            default:
+                return -1;
         }
+    }
+
+    public int getCurrentPosition() {
+        switch(mState) {
+            case MEDIA_STATE_PLAYING:
+                return mMediaPlayer.getCurrentPosition();
+            case MEDIA_STATE_PAUSED:
+                return -2;
+            default:
+                return -1;
+        }
+    }
 }
