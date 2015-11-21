@@ -1,6 +1,8 @@
 package systems.byteswap.publicstream;
 
 import android.util.Log;
+import android.widget.Toast;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -9,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -25,6 +28,8 @@ public class ORFParser {
     private ArrayList<ORFProgram> programList;
     public static String ORF_FULL_BASE_URL = "http://oe1.orf.at/programm/konsole/tag/";
     public static String ORF_LIVE_URL = "http://mp3stream3.apasf.apa.at:8000/;stream.mp3";
+    public static String ORF_DURATION_URL1 = "http://oe1.orf.at/programm/";
+    public static String ORF_DURATION_URL2 = "/playlist";
 
     private String fetchURL(URL orfURL) throws IOException {
         //flag of being in the program list
@@ -42,6 +47,17 @@ public class ORFParser {
         }
         rd.close();
         return this.parse(result.toString());
+    }
+
+    public int getDuration(int programID) {
+        try {
+            URL url = new URL(ORF_DURATION_URL1 + programID + ORF_DURATION_URL2);
+
+        } catch (MalformedURLException e) {
+            Log.e("PUBLICSTREAM","Sry, falsche URL für die Duration...");
+        }
+        //TODO: XML abrufen & parsen...
+        return 3369000;
     }
 
     private String parse(String s) {

@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
@@ -96,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
         buttonLive.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.onCommand(MediaService.ACTION_LOAD,ORFParser.ORF_LIVE_URL);
+                mService.onCommand(MediaService.ACTION_LOAD,ORFParser.ORF_LIVE_URL,0);
                 TextView text = (TextView)findViewById(R.id.textViewCurrentStream);
                 text.setText("LIVE");
             }
@@ -107,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
         buttonPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
+                mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "",0);
             }
         });
 
@@ -115,7 +116,8 @@ public class MainActivity extends AppCompatActivity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf(progress));
+                //Log.e("PUBLICSTREAM","Seek: " + progress);
+                mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf(progress),0);
             }
 
             @Override
@@ -135,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
     public void programClickListener(ORFParser.ORFProgram child) {
         TextView streamtext = (TextView)findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
-        mService.onCommand(MediaService.ACTION_LOAD, child.url);
+        mService.onCommand(MediaService.ACTION_LOAD, child.url, child.id);
     }
 
     @Override
@@ -262,6 +264,9 @@ public class MainActivity extends AppCompatActivity {
                                 default:
                                     dateString += formatter.format(new Date(timeStamp));
                                     currentDuration = timeStamp;
+
+                                    SeekBar seekbar = (SeekBar)findViewById(R.id.seekBar);
+                                    seekbar.setMax(timeStamp);
                                     break;
                             }
 

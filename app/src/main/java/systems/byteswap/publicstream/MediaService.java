@@ -45,7 +45,7 @@ public class MediaService extends Service implements MediaPlayer.OnPreparedListe
         return mMediaPlayer;
     }
 
-    public boolean onCommand(String command, String parameter) {
+    public boolean onCommand(String command, String parameter, int parameter2) {
         switch(command) {
             case ACTION_PLAY_PAUSE:
                 switch(mState) {
@@ -60,6 +60,7 @@ public class MediaService extends Service implements MediaPlayer.OnPreparedListe
                 }
                 break;
             case ACTION_LOAD:
+                //TODO: duration abfragen und speichern...
                 try {
                     switch(mState) {
                         //reset the mediaplayer if anything is running...
@@ -82,6 +83,7 @@ public class MediaService extends Service implements MediaPlayer.OnPreparedListe
                 }
                 break;
             case ACTION_SETTIME:
+                mMediaPlayer.seekTo(Integer.valueOf(parameter));
                 break;
             default:
                 return false;
@@ -112,6 +114,7 @@ public class MediaService extends Service implements MediaPlayer.OnPreparedListe
     public int getDuration() {
         switch(mState) {
             case MEDIA_STATE_PLAYING:
+
                 return mMediaPlayer.getDuration();
             case MEDIA_STATE_PAUSED:
                 return -2;
