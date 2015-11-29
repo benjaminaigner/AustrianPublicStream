@@ -23,6 +23,8 @@ import java.util.GregorianCalendar;
  *
  * This class is able to parse the JSON input of a full program list.
  * Usually retrieved via: http://oe1.orf.at/programm/konsole/tag/<yyyymmdd>
+ *
+ * TODO: check parser, if 1-digit days/months are a problem (URL parsing...)
  */
 public class ORFParser {
     private ArrayList<ORFProgram> programList;
@@ -102,7 +104,7 @@ public class ORFParser {
         dayCalendar.setTime(day);
 
         try {
-            String fullURLString = ORF_FULL_BASE_URL + dayCalendar.get(Calendar.YEAR) + String.valueOf(Integer.valueOf(dayCalendar.get(Calendar.MONTH))+1) + dayCalendar.get(Calendar.DAY_OF_MONTH);
+            String fullURLString = ORF_FULL_BASE_URL + dayCalendar.get(Calendar.YEAR) + String.valueOf(dayCalendar.get(Calendar.MONTH)+1) + dayCalendar.get(Calendar.DAY_OF_MONTH);
             this.fetchURL(new URL(fullURLString));
         } catch (IOException e) {
             e.printStackTrace();

@@ -28,7 +28,8 @@ import java.util.GregorianCalendar;
 import java.util.Timer;
 import java.util.TimerTask;
 
-
+//TODO: Liste minimiert sich wenn update -> fixing... -> is
+//TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
 
 public class MainActivity extends AppCompatActivity {
     Timer listTimer;
@@ -42,14 +43,14 @@ public class MainActivity extends AppCompatActivity {
     int currentDuration;
 
 
-    private ArrayList<ORFParser.ORFProgram> programListToday;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus2;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus3;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus4;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus5;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
+    private static ArrayList<ORFParser.ORFProgram> programListToday;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus2;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus3;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus4;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus5;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
 
     public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
 
@@ -113,11 +114,10 @@ public class MainActivity extends AppCompatActivity {
         });
 
         SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
+        seekBar.setMax(1000);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                //Log.e("PUBLICSTREAM","Seek: " + progress);
-                mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf(progress),0);
             }
 
             @Override
@@ -127,7 +127,9 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-
+                //Log.e("PUBLICSTREAM","Seek: " + progress);
+                //TODO: exception beim resize/orientation change
+                mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float)seekBar.getProgress()/1000),0);
             }
         });
 
@@ -231,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
                 handler.post(new Runnable() {
                     public void run() {
                         if(mService != null) {
-                            TextView time = (TextView)findViewById(R.id.textViewTime);
+
                             SimpleDateFormat formatter = new SimpleDateFormat("mm:ss");
                             int timeStamp = mService.getCurrentPosition();
                             String dateString;
@@ -264,19 +266,28 @@ public class MainActivity extends AppCompatActivity {
                                 default:
                                     dateString += formatter.format(new Date(timeStamp));
                                     currentDuration = timeStamp;
-
-                                    SeekBar seekbar = (SeekBar)findViewById(R.id.seekBar);
-                                    seekbar.setMax(timeStamp);
                                     break;
                             }
 
+                            SeekBar seekbar = (SeekBar) findViewById(R.id.seekBar);
+                            if(!mService.isLive()) {
+                                try {
+                                    seekbar.setProgress((int) (((float) currentTime / (float) currentDuration) * 1000));
+                                } catch (ArithmeticException e) {
+                                    Log.d("PUBLICSTREAM","Progressbar: Div by 0");
+                                }
+                            } else {
+                                seekbar.setProgress(0);
+                            }
+
+                            TextView time = (TextView)findViewById(R.id.textViewTime);
                             time.setText(dateString);
                         }
                     }
                 });
             }
 
-        }, 0, 500);
+        }, 0, 1000);
     }
 
 
@@ -298,6 +309,7 @@ public class MainActivity extends AppCompatActivity {
         //Stop the regular list update
         listTimer.cancel();
         programDataTimer.cancel();
+        seekTimer.cancel();
     }
 
     @Override
