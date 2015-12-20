@@ -4,6 +4,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseExpandableListAdapter;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     private MainActivity activity;
     private LayoutInflater inflater;
 
-    private ArrayList<ORFParser.ORFProgram> listPrograms[] = new ArrayList[8];
+    private ArrayList<ORFParser.ORFProgram> listPrograms[] = new ArrayList[9];
 
     public void setInflater(LayoutInflater inflater, MainActivity activity)
     {
@@ -32,7 +33,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     // method getChildView is called automatically for each child view.
     //  Implement this method as per your requirement
     @Override
-    public View getChildView(int groupPosition, final int childPosition, boolean isLastChild, View convertView, ViewGroup parent)
+    public View getChildView(final int groupPosition, final int childPosition, boolean isLastChild, View convertView, ViewGroup parent)
     {
         final ArrayList<ORFParser.ORFProgram> child;
         if(listPrograms != null && listPrograms[groupPosition] != null) {
@@ -47,9 +48,27 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
             convertView = inflater.inflate(R.layout.child_view, null);
         }
 
-        // get the textView reference and set the title/info
+        // get the textView/ImageView reference and set the title/info
         textView = (TextView) convertView.findViewById(R.id.textViewTitle);
-        textView.setText(child.get(childPosition).time + " - " + child.get(childPosition).shortTitle);
+        ImageView imageViewDownload = (ImageView) convertView.findViewById(R.id.childDownloadImage);
+        if(groupPosition == 8) {
+            textView.setText(child.get(childPosition).dayLabel + " - " + child.get(childPosition).shortTitle);
+            imageViewDownload.setVisibility(View.INVISIBLE);
+        } else {
+            textView.setText(child.get(childPosition).time + " - " + child.get(childPosition).shortTitle);
+
+            // set the ClickListener to handle the click events on the download button
+            imageViewDownload.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    //Create calendar object (today)
+                    Calendar today = new GregorianCalendar();
+                    android.text.format.DateFormat df = new android.text.format.DateFormat();
+                    today.add(Calendar.DAY_OF_MONTH, -groupPosition);
+                    activity.programDownloadClickListener(child.get(childPosition), df.format("dd.MM.yyyy", today).toString());
+                }
+            });
+        }
         textView = (TextView) convertView.findViewById(R.id.textViewChildInfo);
         textView.setText(child.get(childPosition).info);
 
@@ -102,6 +121,13 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
                     itemName.setText(df.format("dd.MM.yyyy", today).toString() + ": 0 Beiträge");
                 }
                 break;
+            case 8:
+                if(listPrograms != null && listPrograms[groupPosition] != null) {
+                    itemName.setText("Offline Beiträge:" + listPrograms[groupPosition].size());
+                } else {
+                    itemName.setText("Offline Beiträge: 0");
+                }
+                break;
             default:
                 itemName.setText("???");
                 break;
@@ -134,6 +160,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
             case 5:
             case 6:
             case 7:
+            case 8:
                 if(listPrograms != null && listPrograms[groupPosition] != null) {
                     return listPrograms[groupPosition].size();
                 } else {
@@ -154,7 +181,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     @Override
     public int getGroupCount()
     {
-        return 8;
+        return 9;
     }
 
     @Override
@@ -194,7 +221,8 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
                        ArrayList<ORFParser.ORFProgram> programListTodayMinus4,
                        ArrayList<ORFParser.ORFProgram> programListTodayMinus5,
                        ArrayList<ORFParser.ORFProgram> programListTodayMinus6,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus7) {
+                       ArrayList<ORFParser.ORFProgram> programListTodayMinus7,
+                       ArrayList<ORFParser.ORFProgram> programListTodayMinusOffline) {
         listPrograms[0] = programListToday;
         listPrograms[1] = programListTodayMinus1;
         listPrograms[2] = programListTodayMinus2;
@@ -203,6 +231,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
         listPrograms[5] = programListTodayMinus5;
         listPrograms[6] = programListTodayMinus6;
         listPrograms[7] = programListTodayMinus7;
+        listPrograms[8] = programListTodayMinusOffline;
     }
 
 }

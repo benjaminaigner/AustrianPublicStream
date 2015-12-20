@@ -1,22 +1,36 @@
 package systems.byteswap.publicstream;
 
 import android.util.Log;
-import android.widget.Toast;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 /**
  * ORF JSON Parser
@@ -30,8 +44,20 @@ public class ORFParser {
     private ArrayList<ORFProgram> programList;
     public static String ORF_FULL_BASE_URL = "http://oe1.orf.at/programm/konsole/tag/";
     public static String ORF_LIVE_URL = "http://mp3stream3.apasf.apa.at:8000/;stream.mp3";
-    public static String ORF_DURATION_URL1 = "http://oe1.orf.at/programm/";
-    public static String ORF_DURATION_URL2 = "/playlist";
+    public static String OFFLINE_XML_NAME = "oe1_offline.xml";
+
+    public static String XML_PROGRAM = "program";
+    public static String XML_ID = "id";
+    public static String XML_TIME = "time";
+    public static String XML_TITLE = "title";
+    public static String XML_SHORTTITLE = "shorttitle";
+    public static String XML_INFO = "info";
+    public static String XML_URL = "url";
+    public static String XML_FILENAME = "filename";
+    public static String XML_DAYLABEL = "daylabel";
+
+    /*public static String ORF_DURATION_URL1 = "http://oe1.orf.at/programm/";
+    public static String ORF_DURATION_URL2 = "/playlist";*/
 
     private String fetchURL(URL orfURL) throws IOException {
         //flag of being in the program list
@@ -49,17 +75,6 @@ public class ORFParser {
         }
         rd.close();
         return this.parse(result.toString());
-    }
-
-    public int getDuration(int programID) {
-        try {
-            URL url = new URL(ORF_DURATION_URL1 + programID + ORF_DURATION_URL2);
-
-        } catch (MalformedURLException e) {
-            Log.e("PUBLICSTREAM","Sry, falsche URL für die Duration...");
-        }
-        //TODO: XML abrufen & parsen...
-        return 3369000;
     }
 
     private String parse(String s) {
@@ -86,6 +101,7 @@ public class ORFParser {
                 currentProgram.shortTitle = (String)programItems.get("short_title");
                 currentProgram.info = (String)programItems.get("info");
                 currentProgram.url = (String)programItems.get("url_stream");
+                currentProgram.dayLabel = (String)programItems.get("day_label");
 
 
                 //add temp program to list
@@ -112,13 +128,148 @@ public class ORFParser {
         return this.programList;
     }
 
-    public class ORFProgram {
+    public ArrayList<ORFProgram> getProgramsOffline(File cacheDir) {
+        ArrayList<ORFProgram> result = new ArrayList<ORFProgram>();
+
+        //open the XML file
+        try {
+            Document doc;
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            InputSource is = new InputSource();
+            is.setCharacterStream(new FileReader(new File(cacheDir, OFFLINE_XML_NAME)));
+            doc = db.parse(is);
+
+            NodeList nl = doc.getElementsByTagName(XML_PROGRAM);
+
+            //iterate all "program" nodes
+            for (int i = 0; i < nl.getLength(); i++) {
+                Element e = (Element) nl.item(i);
+                //fetch all XML tags
+                String daylabel = ORFParser.getValue(e, XML_DAYLABEL);
+                //String fileName = ORFParser.getValue(e, XML_FILENAME);
+                String url = ORFParser.getValue(e, XML_URL);
+                String info = ORFParser.getValue(e, XML_INFO);
+                String title = ORFParser.getValue(e, XML_TITLE);
+                String time = ORFParser.getValue(e, XML_TIME);
+                String id = ORFParser.getValue(e, XML_ID);
+                String shortTitle = ORFParser.getValue(e, XML_SHORTTITLE);
+
+                File file = new File(url);
+                if (file.exists()) {
+                    ORFProgram temp = new ORFProgram();
+                    temp.dayLabel = daylabel;
+                    temp.url = url;
+                    temp.info = info;
+                    temp.title = title;
+                    temp.shortTitle = shortTitle;
+                    temp.time = time;
+                    temp.id = Integer.valueOf(id);
+                    result.add(temp);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            Log.e("PUBLICSTREAM", e.getMessage());
+            return null;
+        }
+    }
+
+    public void addProgramOffline(ORFProgram program, File cacheDir) {
+
+        try {
+            //open the XML file
+            Document doc;
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Element root;
+            try {
+                InputSource is = new InputSource();
+                is.setCharacterStream(new FileReader(new File(cacheDir, OFFLINE_XML_NAME)));
+                doc = db.parse(is);
+                root = doc.getDocumentElement();
+            } catch (FileNotFoundException e) {
+                doc = db.newDocument();
+                root = doc.createElement("root");
+                doc.appendChild(root);
+            }
+
+            //Add new program
+            Element newProgram = doc.createElement(XML_PROGRAM);
+
+            //Add all XML tags to the new program
+            Element title = doc.createElement(XML_TITLE);
+            title.appendChild(doc.createTextNode(program.title));
+            newProgram.appendChild(title);
+
+            Element shorttitle = doc.createElement(XML_SHORTTITLE);
+            shorttitle.appendChild(doc.createTextNode(program.shortTitle));
+            newProgram.appendChild(shorttitle);
+
+            Element id = doc.createElement(XML_ID);
+            id.appendChild(doc.createTextNode(String.valueOf(program.id)));
+            newProgram.appendChild(id);
+
+            Element time = doc.createElement(XML_TIME);
+            time.appendChild(doc.createTextNode(program.time));
+            newProgram.appendChild(time);
+
+            Element url = doc.createElement(XML_URL);
+            url.appendChild(doc.createTextNode(program.url));
+            newProgram.appendChild(url);
+
+            Element info = doc.createElement(XML_INFO);
+            info.appendChild(doc.createTextNode(program.info));
+            newProgram.appendChild(info);
+
+            Element filename = doc.createElement(XML_FILENAME);
+            filename.appendChild(doc.createTextNode(program.url));
+            newProgram.appendChild(filename);
+
+            Element daylabel = doc.createElement(XML_DAYLABEL);
+            daylabel.appendChild(doc.createTextNode(program.dayLabel));
+            newProgram.appendChild(daylabel);
+
+            root.appendChild(newProgram);
+
+            //Rewrite the XML to the external storage (cache)...
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            FileWriter writer = new FileWriter(new File(cacheDir, OFFLINE_XML_NAME));
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+        } catch (Exception e) {
+            Log.e("PUBLICSTREAM","XML write failed: " + e.getMessage());
+        }
+    }
+
+    private static String getValue(Element item, String str) {
+        NodeList n = item.getElementsByTagName(str);
+        return ORFParser.getElementValue(n.item(0));
+    }
+
+    private static String getElementValue( Node elem ) {
+        Node child;
+        if( elem != null){
+            if (elem.hasChildNodes()){
+                for( child = elem.getFirstChild(); child != null; child = child.getNextSibling() ){
+                    if( child.getNodeType() == Node.TEXT_NODE  ){
+                        return child.getNodeValue();
+                    }
+                }
+            }
+        }
+        return "";
+    }
+
+    public static class ORFProgram {
         public int id;
-        public String length;
+        //public String length;
         public String time;
         public String title;
         public String shortTitle;
         public String info;
         public String url;
+        public String dayLabel;
     }
 }

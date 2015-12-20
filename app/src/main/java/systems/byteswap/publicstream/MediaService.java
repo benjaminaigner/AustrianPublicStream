@@ -16,8 +16,6 @@ import org.videolan.libvlc.MediaPlayer;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
-//TODO: locks passen noch nicht ganz... (underlocking)
-
 public class MediaService extends Service implements IVLCVout.Callback, LibVLC.HardwareAccelerationError {
     public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAY";
     public final static String ACTION_STOP = "systems.byteswap.action.STOP";
@@ -27,9 +25,9 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     public final static String MEDIA_STATE_IDLE = "systems.byteswap.mediastate.IDLE";
     public final static String MEDIA_STATE_PLAYING = "systems.byteswap.mediastate.PLAYING";
     public final static String MEDIA_STATE_PAUSED = "systems.byteswap.mediastate.PAUSED";
-    public final static String MEDIA_STATE_PREPARING = "systems.byteswap.mediastate.PREPARING";
+    //public final static String MEDIA_STATE_PREPARING = "systems.byteswap.mediastate.PREPARING";
 
-    public final static int MEDIA_BUFFER_MS = 6000;
+    //public final static int MEDIA_BUFFER_MS = 6000;
 
     private MediaPlayer mMediaPlayer = null;
     private LibVLC libvlc;
@@ -72,18 +70,14 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                 }
                 break;
             case ACTION_LOAD:
-                    if(parameter.equals(ORFParser.ORF_LIVE_URL)) {
-                        isLive=true;
-                    } else {
-                        isLive=false;
-                    }
+                    isLive = parameter.equals(ORFParser.ORF_LIVE_URL);
+                    createPlayer(parameter);
                     wifiLock.acquire();
                     wakeLock.acquire();
-                    createPlayer(parameter);
                     mState = MEDIA_STATE_PLAYING;
                 break;
             case ACTION_SETTIME:
-                float position = Float.valueOf(parameter);
+                //float position = Float.valueOf(parameter);
                 mMediaPlayer.setPosition(Float.valueOf(parameter));
                 break;
             default:
@@ -97,6 +91,8 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     public void onDestroy() {
         if(mMediaPlayer != null) {
             mMediaPlayer.release();
+            wifiLock.release();
+            wakeLock.release();
             mMediaPlayer = null;
         }
     }
@@ -161,7 +157,12 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
             mMediaPlayer = new MediaPlayer(libvlc);
             mMediaPlayer.setEventListener(mPlayerListener);
 
-            Media m = new Media(libvlc, Uri.parse(media));
+            Media m;
+            if(media.contains("http")) {
+                m = new Media(libvlc, Uri.parse(media));
+            } else {
+                m = new Media(libvlc,media);
+            }
             //m.setHWDecoderEnabled(false,false);
             m.addOption(":network-caching=6000");
             mMediaPlayer.setMedia(m);
@@ -177,8 +178,6 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
             return;
         mMediaPlayer.stop();
         libvlc.release();
-        wifiLock.release();
-        wakeLock.release();
         libvlc = null;
     }
 

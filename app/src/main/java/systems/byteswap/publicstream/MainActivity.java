@@ -1,10 +1,12 @@
 package systems.byteswap.publicstream;
 
+import android.app.FragmentManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
@@ -19,7 +21,13 @@ import android.widget.ExpandableListView;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -28,10 +36,13 @@ import java.util.GregorianCalendar;
 import java.util.Timer;
 import java.util.TimerTask;
 
-//TODO: Liste minimiert sich wenn update -> fixing... -> is
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
+//TODO: löschen button einbauen für offline sachen (minor, löschen geht auch im filemanager)
 
 public class MainActivity extends AppCompatActivity {
+    public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
+
+
     Timer listTimer;
     Timer programDataTimer;
     Timer seekTimer;
@@ -41,19 +52,16 @@ public class MainActivity extends AppCompatActivity {
     MediaService mService;
     int currentTime;
     int currentDuration;
-
-
-    private static ArrayList<ORFParser.ORFProgram> programListToday;
-    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
-    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus2;
-    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus3;
-    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus4;
-    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus5;
-    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
-    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
-
-    public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
-
+    private MainFragment dataFragment;
+    private ArrayList<ORFParser.ORFProgram> programListToday;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus2;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus3;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus4;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus5;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
+    private ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
+    private ArrayList<ORFParser.ORFProgram> programListOffline;
 
     public boolean hasChanged = false;
 
@@ -72,6 +80,29 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // find the retained fragment on activity restarts
+        FragmentManager fm = getFragmentManager();
+        dataFragment = (MainFragment) fm.findFragmentByTag("data");
+        // create the fragment and data the first time
+        // or load existing data...
+        if (dataFragment == null) {
+            // add the fragment
+            dataFragment = new MainFragment();
+            fm.beginTransaction().add(dataFragment, "data").commit();
+        } else {
+            programListToday = dataFragment.getProgramListToday();
+            programListTodayMinus1 = dataFragment.getProgramListTodayMinus1();
+            programListTodayMinus2 = dataFragment.getProgramListTodayMinus2();
+            programListTodayMinus3 = dataFragment.getProgramListTodayMinus3();
+            programListTodayMinus4 = dataFragment.getProgramListTodayMinus4();
+            programListTodayMinus5 = dataFragment.getProgramListTodayMinus5();
+            programListTodayMinus6 = dataFragment.getProgramListTodayMinus6();
+            programListTodayMinus7 = dataFragment.getProgramListTodayMinus7();
+            programListOffline = dataFragment.getProgramListOffline();
+        }
+
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -127,9 +158,9 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                //Log.e("PUBLICSTREAM","Seek: " + progress);
-                //TODO: exception beim resize/orientation change
-                mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float)seekBar.getProgress()/1000),0);
+                if(mService != null) {
+                    mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float)seekBar.getProgress()/1000),0);
+                }
             }
         });
 
@@ -139,7 +170,91 @@ public class MainActivity extends AppCompatActivity {
     public void programClickListener(ORFParser.ORFProgram child) {
         TextView streamtext = (TextView)findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
+        Toast.makeText(MainActivity.this, "Play", Toast.LENGTH_SHORT).show();
         mService.onCommand(MediaService.ACTION_LOAD, child.url, child.id);
+    }
+
+    //listener for download item clicks
+    //Download according to: https://stackoverflow.com/questions/6407324/how-to-get-image-from-url-in-android/13174188#13174188
+    public void programDownloadClickListener(final ORFParser.ORFProgram child, final String datum) {
+        Toast.makeText(MainActivity.this, "Download...", Toast.LENGTH_SHORT).show();
+        String message;
+        new Thread(new Runnable() {
+            public void run() {
+                String fileName;
+                try{
+                    ORFParser parser = new ORFParser();
+                    //setup the connection
+                    URL orfURL = new URL(child.url);
+                    HttpURLConnection urlConnection = (HttpURLConnection) orfURL.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.setDoOutput(true);
+                    urlConnection.connect();
+
+                    //create the file
+                    File folder = new File(Environment.getExternalStorageDirectory().toString() + "/Ö1-Beiträge");
+                    //String fileName = datum + "-" + child.time + "-" + child.shortTitle + ".mp3";
+                    fileName = datum + "-" + child.time.replace(':','.') + "-" + child.shortTitle + ".mp3";
+                    folder.mkdirs();
+                    File file = new File(folder, fileName);
+                    if (file.createNewFile()) {
+                        file.createNewFile();
+                    }
+
+                    //Setup the streams
+                    FileOutputStream fileOutput = new FileOutputStream(file);
+                    InputStream inputStream = urlConnection.getInputStream();
+
+                    //this is the total size of the file
+                    int totalSize = urlConnection.getContentLength();
+                    //variable to store total downloaded bytes
+                    int downloadedSize = 0;
+
+                    //create a buffer...
+                    byte[] buffer = new byte[1024];
+                    int bufferLength; //used to store a temporary size of the buffer
+
+                    //now, read through the input buffer and write the contents to the file
+                    while ((bufferLength = inputStream.read(buffer)) > 0) {
+                        //add the data in the buffer to the file in the file output stream (the file on the sd card
+                        fileOutput.write(buffer, 0, bufferLength);
+                        //add up the size so we know how much is downloaded
+                        downloadedSize += bufferLength;
+                        //this is where you would do something to report the prgress, like this maybe
+                        Log.i("Progress:", "downloadedSize:" + downloadedSize + "totalSize:" + totalSize);
+                    }
+                    //close the output stream when done
+
+                    fileOutput.close();
+
+                    if(downloadedSize==totalSize) {
+                        runOnUiThread(new Runnable() {
+                            public void run() {
+                                Toast.makeText(getBaseContext(), "Download abgeschlossen", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                        //Finally: add the downloaded program to the offline list and update the UI...
+                        child.url = folder + "/" + fileName;
+                        parser.addProgramOffline(child,getBaseContext().getExternalCacheDir());
+                        programListOffline = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+                        hasChanged = true;
+
+                    } else {
+                        runOnUiThread(new Runnable() {
+                            public void run() {
+                                Toast.makeText(getBaseContext(), "Fehler: unvollständiger Download", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                } catch(final Exception e) {
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            Toast.makeText(getBaseContext(), "Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+        }).start();
     }
 
     @Override
@@ -150,9 +265,11 @@ public class MainActivity extends AppCompatActivity {
         programDataTimer = new Timer();
         seekTimer = new Timer();
 
+
         programDataTimer.schedule(new TimerTask() {
             @Override
             public void run() {
+                boolean hasChangedTemp = false;
                 //Create calendar object (today)
                 Calendar today = new GregorianCalendar();
                 //create parser object
@@ -163,53 +280,72 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListToday)) {
                     programListToday = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListToday(temp);
+                    hasChangedTemp = true;
                 }
 
                 today.add(Calendar.DAY_OF_MONTH,-1);
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListTodayMinus1)) {
                     programListTodayMinus1 = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListTodayMinus1(temp);
+                    hasChangedTemp = true;
                 }
 
                 today.add(Calendar.DAY_OF_MONTH,-1);
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListTodayMinus2)) {
                     programListTodayMinus2 = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListTodayMinus2(temp);
+                    hasChangedTemp = true;
                 }
                 today.add(Calendar.DAY_OF_MONTH,-1);
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListTodayMinus3)) {
                     programListTodayMinus3 = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListTodayMinus3(temp);
+                    hasChangedTemp = true;
                 }
                 today.add(Calendar.DAY_OF_MONTH,-1);
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListTodayMinus4)) {
                     programListTodayMinus4 = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListTodayMinus4(temp);
+                    hasChangedTemp = true;
                 }
                 today.add(Calendar.DAY_OF_MONTH,-1);
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListTodayMinus5)) {
                     programListTodayMinus5 = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListTodayMinus5(temp);
+                    hasChangedTemp = true;
                 }
                 today.add(Calendar.DAY_OF_MONTH,-1);
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListTodayMinus6)) {
                     programListTodayMinus6 = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListTodayMinus6(temp);
+                    hasChangedTemp = true;
                 }
                 today.add(Calendar.DAY_OF_MONTH,-1);
                 temp = parser.getProgramsForDay(today.getTime());
                 if(!temp.equals(programListTodayMinus7)) {
                     programListTodayMinus7 = temp;
-                    hasChanged = true;
+                    dataFragment.setProgramListTodayMinus7(temp);
+                    hasChangedTemp = true;
                 }
 
+                temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+                if(temp != null) {
+                    if (!temp.equals(programListOffline)) {
+                        programListOffline = temp;
+                        dataFragment.setProgramListOffline(temp);
+                        hasChangedTemp = true;
+                    }
+                }
+
+                //if one list object is changed -> set global change flag
+                hasChanged = hasChangedTemp;
             }
         }, 0, REFETCH_LIST_INTERVAL_SECONDS * 1000);
 
@@ -295,8 +431,10 @@ public class MainActivity extends AppCompatActivity {
     /** update the list view, the data is fetched in the other timer method */
     private void TimerMethod() {
         adapter.update(programListToday, programListTodayMinus1,
-                programListTodayMinus2, programListTodayMinus3, programListTodayMinus4, programListTodayMinus5,
-                programListTodayMinus6, programListTodayMinus7);
+                programListTodayMinus2, programListTodayMinus3,
+                programListTodayMinus4, programListTodayMinus5,
+                programListTodayMinus6, programListTodayMinus7,
+                programListOffline);
         if(expandableList != null && adapter != null && hasChanged) {
             expandableList.setAdapter(adapter);
             hasChanged = false;
