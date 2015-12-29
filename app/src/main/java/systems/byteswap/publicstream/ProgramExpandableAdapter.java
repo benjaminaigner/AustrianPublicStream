@@ -90,6 +90,8 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     {
 
         if (convertView == null) {
+            //TODO: vorher war NULL als 2. param
+            //convertView = inflater.inflate(R.layout.parent_view, parent);
             convertView = inflater.inflate(R.layout.parent_view, null);
         }
 
@@ -116,9 +118,9 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
             case 7:
                 today.add(Calendar.DAY_OF_MONTH,-groupPosition);
                 if(listPrograms != null && listPrograms[groupPosition] != null) {
-                    itemName.setText(df.format("dd.MM.yyyy", today).toString() + ": " + listPrograms[groupPosition].size() + " Beiträge");
+                    itemName.setText(android.text.format.DateFormat.format("dd.MM.yyyy", today).toString() + ": " + listPrograms[groupPosition].size() + " Beiträge");
                 } else {
-                    itemName.setText(df.format("dd.MM.yyyy", today).toString() + ": 0 Beiträge");
+                    itemName.setText(android.text.format.DateFormat.format("dd.MM.yyyy", today).toString() + ": 0 Beiträge");
                 }
                 break;
             case 8:

@@ -1,6 +1,7 @@
 package systems.byteswap.publicstream;
 
 import android.app.FragmentManager;
+import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -10,6 +11,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -25,6 +27,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -38,6 +41,7 @@ import java.util.TimerTask;
 
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
 //TODO: löschen button einbauen für offline sachen (minor, löschen geht auch im filemanager)
+//TODO: Notification einbauen (Play)
 
 public class MainActivity extends AppCompatActivity {
     public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
@@ -129,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
         buttonLive.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.onCommand(MediaService.ACTION_LOAD,ORFParser.ORF_LIVE_URL,0);
+                mService.onCommand(MediaService.ACTION_LOAD,ORFParser.ORF_LIVE_URL);
                 TextView text = (TextView)findViewById(R.id.textViewCurrentStream);
                 text.setText("LIVE");
             }
@@ -140,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
         buttonPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "",0);
+                mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
             }
         });
 
@@ -159,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 if(mService != null) {
-                    mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float)seekBar.getProgress()/1000),0);
+                    mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float)seekBar.getProgress()/1000));
                 }
             }
         });
@@ -171,14 +175,15 @@ public class MainActivity extends AppCompatActivity {
         TextView streamtext = (TextView)findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
         Toast.makeText(MainActivity.this, "Play", Toast.LENGTH_SHORT).show();
-        mService.onCommand(MediaService.ACTION_LOAD, child.url, child.id);
+        mService.onCommand(MediaService.ACTION_LOAD, child.url);
+        //mService.onCommand(MediaService.ACTION_LOAD, child.url, child.id);
     }
 
     //listener for download item clicks
     //Download according to: https://stackoverflow.com/questions/6407324/how-to-get-image-from-url-in-android/13174188#13174188
     public void programDownloadClickListener(final ORFParser.ORFProgram child, final String datum) {
         Toast.makeText(MainActivity.this, "Download...", Toast.LENGTH_SHORT).show();
-        String message;
+        //String message;
         new Thread(new Runnable() {
             public void run() {
                 String fileName;
@@ -196,6 +201,7 @@ public class MainActivity extends AppCompatActivity {
                     //String fileName = datum + "-" + child.time + "-" + child.shortTitle + ".mp3";
                     fileName = datum + "-" + child.time.replace(':','.') + "-" + child.shortTitle + ".mp3";
                     folder.mkdirs();
+
                     File file = new File(folder, fileName);
                     if (file.createNewFile()) {
                         file.createNewFile();
@@ -214,14 +220,36 @@ public class MainActivity extends AppCompatActivity {
                     byte[] buffer = new byte[1024];
                     int bufferLength; //used to store a temporary size of the buffer
 
+                    //Create a notification to show the download progress
+                    NotificationManager mNotificationManager =
+                            (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                    int notifyID = 1;
+                    int progress = 0;
+                    int progresstemp = 0;
+                    NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
+                            .setContentTitle("Download")
+                            .setContentText(child.title + "0%")
+                            .setSmallIcon(R.mipmap.download);
+
+
+
+
+
                     //now, read through the input buffer and write the contents to the file
                     while ((bufferLength = inputStream.read(buffer)) > 0) {
                         //add the data in the buffer to the file in the file output stream (the file on the sd card
                         fileOutput.write(buffer, 0, bufferLength);
                         //add up the size so we know how much is downloaded
                         downloadedSize += bufferLength;
-                        //this is where you would do something to report the prgress, like this maybe
-                        Log.i("Progress:", "downloadedSize:" + downloadedSize + "totalSize:" + totalSize);
+                        //show every progress change in the notification
+                        progresstemp = (int)(((float)downloadedSize/(float)totalSize)*100);
+                        if(progresstemp != progress) {
+                            mNotifyBuilder.setContentText(child.title + " " + progresstemp +"%");
+                            mNotificationManager.notify(
+                                    notifyID,
+                                    mNotifyBuilder.build());
+                            progress = progresstemp;
+                        }
                     }
                     //close the output stream when done
 

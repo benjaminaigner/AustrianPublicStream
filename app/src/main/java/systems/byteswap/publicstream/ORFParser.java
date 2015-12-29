@@ -129,7 +129,8 @@ public class ORFParser {
     }
 
     public ArrayList<ORFProgram> getProgramsOffline(File cacheDir) {
-        ArrayList<ORFProgram> result = new ArrayList<ORFProgram>();
+        ArrayList<ORFProgram> result = new ArrayList<>();
+        //ArrayList<ORFProgram> result = new ArrayList<ORFProgram>();
 
         //open the XML file
         try {

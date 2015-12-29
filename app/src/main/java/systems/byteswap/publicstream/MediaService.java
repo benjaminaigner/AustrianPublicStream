@@ -18,7 +18,7 @@ import java.util.ArrayList;
 
 public class MediaService extends Service implements IVLCVout.Callback, LibVLC.HardwareAccelerationError {
     public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAY";
-    public final static String ACTION_STOP = "systems.byteswap.action.STOP";
+    //public final static String ACTION_STOP = "systems.byteswap.action.STOP";
     public final static String ACTION_SETTIME = "systems.byteswap.action.SETTIME";
     public final static String ACTION_LOAD = "systems.byteswap.action.LOAD";
 
@@ -44,14 +44,15 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "publicStreamWifiLock");
         wakeLock = ((PowerManager) getSystemService(Context.POWER_SERVICE))
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "publicStreamWakeLock");
-        return new LocalBinder<MediaService>(this);
+        //return new LocalBinder<MediaService>(this);
+        return new LocalBinder<>(this);
     }
 
-    public MediaPlayer getMediaPlayer() {
+    /*public MediaPlayer getMediaPlayer() {
         return mMediaPlayer;
-    }
+    }*/
 
-    public boolean onCommand(String command, String parameter, int parameter2) {
+    public boolean onCommand(String command, String parameter) {
         switch(command) {
             case ACTION_PLAY_PAUSE:
                 switch(mState) {
@@ -144,7 +145,7 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         releasePlayer();
         try {
             // Create LibVLC
-            ArrayList<String> options = new ArrayList<String>();
+            ArrayList<String> options = new ArrayList<>();
             options.add("--aout=opensles");
             options.add("--audio-time-stretch"); // time stretching
             options.add("-vvv"); // verbosity
@@ -201,7 +202,8 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         private WeakReference<MediaService> mOwner;
 
         public MyPlayerListener(MediaService owner) {
-            mOwner = new WeakReference<MediaService>(owner);
+            //mOwner = new WeakReference<MediaService>(owner);
+            mOwner = new WeakReference<>(owner);
         }
 
         @Override
