@@ -23,6 +23,9 @@ import android.support.v4.app.NavUtils;
 
 import java.util.List;
 
+//TODO: Setting "Notification beim Abspielen"
+//TODO: Setting "Notification wenn pausiert"
+//TODO: Setting "Bleibende Notification"
 /**
  * A {@link PreferenceActivity} that presents a set of application settings. On
  * handset devices, settings are presented as a single list. On tablets,

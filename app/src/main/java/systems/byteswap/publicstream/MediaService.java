@@ -7,6 +7,8 @@ import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.widget.Toast;
 import org.videolan.libvlc.IVLCVout;
@@ -17,7 +19,9 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
 public class MediaService extends Service implements IVLCVout.Callback, LibVLC.HardwareAccelerationError {
-    public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAY";
+    public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAYPAUSE";
+    public final static String ACTION_PLAY = "systems.byteswap.action.PLAY";
+    public final static String ACTION_PAUSE = "systems.byteswap.action.PAUSE";
     //public final static String ACTION_STOP = "systems.byteswap.action.STOP";
     public final static String ACTION_SETTIME = "systems.byteswap.action.SETTIME";
     public final static String ACTION_LOAD = "systems.byteswap.action.LOAD";
@@ -32,11 +36,12 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     private MediaPlayer mMediaPlayer = null;
     private LibVLC libvlc;
     private String mState = MEDIA_STATE_IDLE;
+    private String mStatePrevious = MEDIA_STATE_IDLE;
     private MediaPlayer.EventListener mPlayerListener = new MyPlayerListener(this);
     private WifiManager.WifiLock wifiLock;
     private PowerManager.WakeLock wakeLock;
     private boolean isLive = false;
-
+    PhoneStateListener phoneStateListener;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -44,6 +49,22 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "publicStreamWifiLock");
         wakeLock = ((PowerManager) getSystemService(Context.POWER_SERVICE))
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "publicStreamWakeLock");
+
+        phoneStateListener = new PhoneStateListener() {
+            @Override
+            public void onCallStateChanged(int state, String incomingNumber) {
+                if (state == TelephonyManager.CALL_STATE_RINGING) {
+                    mStatePrevious = mState;
+                    onCommand(ACTION_PAUSE,"");
+                } else if(state == TelephonyManager.CALL_STATE_IDLE) {
+                    if(mStatePrevious.equals(MEDIA_STATE_PLAYING)) onCommand(ACTION_PLAY,"");
+                } else if(state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                    mStatePrevious = mState;
+                    onCommand(ACTION_PAUSE,"");
+                }
+                super.onCallStateChanged(state, incomingNumber);
+            }
+        };
         //return new LocalBinder<MediaService>(this);
         return new LocalBinder<>(this);
     }
@@ -53,6 +74,7 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     }*/
 
     public boolean onCommand(String command, String parameter) {
+        TelephonyManager mgr;
         switch(command) {
             case ACTION_PLAY_PAUSE:
                 switch(mState) {
@@ -61,12 +83,52 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                         wakeLock.acquire();
                         mMediaPlayer.play();
                         mState = MEDIA_STATE_PLAYING;
+
+                        mgr = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+                        if(mgr != null) {
+                            mgr.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+                        }
                         break;
                     case MEDIA_STATE_PLAYING:
                         mMediaPlayer.pause();
                         mState = MEDIA_STATE_PAUSED;
                         wifiLock.release();
                         wakeLock.release();
+
+                        mgr = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+                        if(mgr != null) {
+                            mgr.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+                        }
+                        break;
+                }
+                break;
+            case ACTION_PAUSE:
+                switch(mState) {
+                    case MEDIA_STATE_PLAYING:
+                        mMediaPlayer.pause();
+                        mState = MEDIA_STATE_PAUSED;
+                        wifiLock.release();
+                        wakeLock.release();
+
+                        mgr = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+                        if(mgr != null) {
+                            mgr.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+                        }
+                        break;
+                }
+                break;
+            case ACTION_PLAY:
+                switch(mState) {
+                    case MEDIA_STATE_PAUSED:
+                        wifiLock.acquire();
+                        wakeLock.acquire();
+                        mMediaPlayer.play();
+                        mState = MEDIA_STATE_PLAYING;
+
+                        mgr = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+                        if(mgr != null) {
+                            mgr.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+                        }
                         break;
                 }
                 break;
@@ -76,6 +138,11 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                     wifiLock.acquire();
                     wakeLock.acquire();
                     mState = MEDIA_STATE_PLAYING;
+
+                    mgr = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+                    if(mgr != null) {
+                        mgr.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+                    }
                 break;
             case ACTION_SETTIME:
                 //float position = Float.valueOf(parameter);
@@ -101,7 +168,11 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     public int getDuration() {
         switch(mState) {
             case MEDIA_STATE_PLAYING:
-                return safeLongToInt(mMediaPlayer.getLength());
+                try {
+                    return safeLongToInt(mMediaPlayer.getLength());
+                } catch (NullPointerException e) {
+                    return -1;
+                }
             case MEDIA_STATE_PAUSED:
                 return -2;
             default:
@@ -112,7 +183,12 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     public int getCurrentPosition() {
         switch(mState) {
             case MEDIA_STATE_PLAYING:
-                return safeLongToInt(mMediaPlayer.getTime());
+                try {
+                    int ret = safeLongToInt(mMediaPlayer.getTime());
+                    return ret;
+                } catch (NullPointerException e) {
+                    return 0;
+                }
             case MEDIA_STATE_PAUSED:
                 return -2;
             default:

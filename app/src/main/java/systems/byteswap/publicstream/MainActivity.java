@@ -2,6 +2,7 @@ package systems.byteswap.publicstream;
 
 import android.app.FragmentManager;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -13,6 +14,8 @@ import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -27,7 +30,6 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -41,10 +43,15 @@ import java.util.TimerTask;
 
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
 //TODO: löschen button einbauen für offline sachen (minor, löschen geht auch im filemanager)
-//TODO: Notification einbauen (Play)
 
 public class MainActivity extends AppCompatActivity {
+    /** number of seconds between each list fetching action (getting all JSON files of programs, takes about 2-5s) **/
     public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
+
+    /** ID for the download notification, unique to differ the notifications for the update **/
+    public static int NOTIFICATION_DOWNLOAD_ID = 1;
+    /** ID for the play notification, unique to differ the notifications for the update **/
+    public static int NOTIFICATION_PLAY_ID = 2;
 
 
     Timer listTimer;
@@ -66,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
     private ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
     private ArrayList<ORFParser.ORFProgram> programListOffline;
+    boolean isPausedNotified = false;
 
     public boolean hasChanged = false;
 
@@ -179,6 +187,8 @@ public class MainActivity extends AppCompatActivity {
         //mService.onCommand(MediaService.ACTION_LOAD, child.url, child.id);
     }
 
+
+
     //listener for download item clicks
     //Download according to: https://stackoverflow.com/questions/6407324/how-to-get-image-from-url-in-android/13174188#13174188
     public void programDownloadClickListener(final ORFParser.ORFProgram child, final String datum) {
@@ -223,13 +233,12 @@ public class MainActivity extends AppCompatActivity {
                     //Create a notification to show the download progress
                     NotificationManager mNotificationManager =
                             (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                    int notifyID = 1;
                     int progress = 0;
-                    int progresstemp = 0;
+                    int progresstemp;
                     NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
                             .setContentTitle("Download")
                             .setContentText(child.title + "0%")
-                            .setSmallIcon(R.mipmap.download);
+                            .setSmallIcon(R.drawable.notification_download);
 
 
 
@@ -245,8 +254,9 @@ public class MainActivity extends AppCompatActivity {
                         progresstemp = (int)(((float)downloadedSize/(float)totalSize)*100);
                         if(progresstemp != progress) {
                             mNotifyBuilder.setContentText(child.title + " " + progresstemp +"%");
+                            mNotifyBuilder.setProgress(100, progresstemp, false);
                             mNotificationManager.notify(
-                                    notifyID,
+                                    MainActivity.NOTIFICATION_DOWNLOAD_ID,
                                     mNotifyBuilder.build());
                             progress = progresstemp;
                         }
@@ -395,6 +405,20 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 handler.post(new Runnable() {
+
+                    Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class)
+                            .setFlags(Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
+                            //.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
+
+                    NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
+                            .setContentTitle("Ö1 - PublicStream")
+                            .setSmallIcon(R.drawable.notification_play).setContentIntent(contentIntent);
+                    NotificationManager mNotificationManager =
+                            (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                    //mNotifyBuilder.setLatestEventInfo(getApplicationContext(), from, message, contentIntent);
+
+
                     public void run() {
                         if(mService != null) {
 
@@ -417,6 +441,7 @@ public class MainActivity extends AppCompatActivity {
                                     currentTime = timeStamp;
                                     break;
                             }
+                            //add the separator
                             dateString += "/";
 
                             timeStamp = mService.getDuration();
@@ -444,8 +469,34 @@ public class MainActivity extends AppCompatActivity {
                                 seekbar.setProgress(0);
                             }
 
+                            //set the corresponding notification
+                            switch(timeStamp) {
+                                case -1:
+                                    mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
+                                    isPausedNotified = false;
+                                    break;
+                                case -2:
+                                    if(!isPausedNotified) {
+                                        isPausedNotified = true;
+                                        mNotifyBuilder.setContentText("Pause: " + dateString);
+                                        mNotificationManager.notify(
+                                                MainActivity.NOTIFICATION_PLAY_ID,
+                                                mNotifyBuilder.build());
+                                    }
+                                    break;
+                                default:
+                                    //wenn nicht mehr aktiv -> pausieren...
+                                    mNotifyBuilder.setContentText("Abspielen: " + dateString);
+                                    mNotificationManager.notify(
+                                            MainActivity.NOTIFICATION_PLAY_ID,
+                                            mNotifyBuilder.build());
+                                    isPausedNotified = false;
+                                    break;
+                            }
+
+                            //Update the time in the text view (GUI, bottom right)
                             TextView time = (TextView)findViewById(R.id.textViewTime);
-                            time.setText(dateString);
+                                    time.setText(dateString);
                         }
                     }
                 });
@@ -475,7 +526,8 @@ public class MainActivity extends AppCompatActivity {
         //Stop the regular list update
         listTimer.cancel();
         programDataTimer.cancel();
-        seekTimer.cancel();
+        //TODO: braucht das viel Akku wenn der Timer immer läuft?
+        //seekTimer.cancel();
     }
 
     @Override
