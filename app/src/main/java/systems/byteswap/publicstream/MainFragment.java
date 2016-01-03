@@ -1,5 +1,7 @@
 package systems.byteswap.publicstream;
 
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.app.Fragment;
 import java.util.ArrayList;
@@ -23,6 +25,10 @@ public class MainFragment extends Fragment {
     private ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
     private ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
     private ArrayList<ORFParser.ORFProgram> programListOffline;
+    private MediaService mService;
+    private ServiceConnection mConnection;
+    private Intent mServiceIntent;
+
 
     // this method is only called once for this fragment
     @Override
@@ -103,5 +109,29 @@ public class MainFragment extends Fragment {
 
     public void setProgramListOffline(ArrayList<ORFParser.ORFProgram> programListOffline) {
         this.programListOffline = programListOffline;
+    }
+
+    public MediaService getMediaService() {
+        return mService;
+    }
+
+    public void setMediaService(MediaService mService) {
+        this.mService = mService;
+    }
+
+    public ServiceConnection getMediaConnection() {
+        return mConnection;
+    }
+
+    public void setMediaConnection(ServiceConnection mConnection) {
+        this.mConnection = mConnection;
+    }
+
+    public Intent getMediaServiceIntent() {
+        return mServiceIntent;
+    }
+
+    public void setMediaServiceIntent(Intent mServiceIntent) {
+        this.mServiceIntent = mServiceIntent;
     }
 }

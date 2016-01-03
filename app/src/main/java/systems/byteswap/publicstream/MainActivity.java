@@ -14,8 +14,6 @@ import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
-import android.telephony.PhoneStateListener;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -42,7 +40,11 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
+//TODO:; BUG:
+//Nicht alle sachen werden im Fragment gesichert...
+//TODO: Timer & weiter Klassen im MainFragment sichern...
 //TODO: löschen button einbauen für offline sachen (minor, löschen geht auch im filemanager)
+//TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
 public class MainActivity extends AppCompatActivity {
     /** number of seconds between each list fetching action (getting all JSON files of programs, takes about 2-5s) **/
@@ -77,20 +79,14 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean hasChanged = false;
 
-    private ServiceConnection mConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            mService = ((LocalBinder<MediaService>) service).getService();
-        }
-
-        public void onServiceDisconnected(ComponentName className) {
-            // As our service is in the same process, this should never be called
-        }
-    };
+    private ServiceConnection mConnection;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Intent mMediaServiceIntent;
+
         setContentView(R.layout.activity_main);
 
         // find the retained fragment on activity restarts
@@ -102,6 +98,23 @@ public class MainActivity extends AppCompatActivity {
             // add the fragment
             dataFragment = new MainFragment();
             fm.beginTransaction().add(dataFragment, "data").commit();
+
+            mConnection = new ServiceConnection() {
+                public void onServiceConnected(ComponentName className, IBinder service) {
+                    mService = ((LocalBinder<MediaService>) service).getService();
+                    dataFragment.setMediaService(mService);
+                }
+
+                public void onServiceDisconnected(ComponentName className) {
+                    // As our service is in the same process, this should never be called
+                }
+            };
+            dataFragment.setMediaConnection(mConnection);
+
+            //start the mediaplayer service
+            mMediaServiceIntent = new Intent(this, MediaService.class);
+            bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
+            dataFragment.setMediaServiceIntent(mMediaServiceIntent);
         } else {
             programListToday = dataFragment.getProgramListToday();
             programListTodayMinus1 = dataFragment.getProgramListTodayMinus1();
@@ -112,15 +125,28 @@ public class MainActivity extends AppCompatActivity {
             programListTodayMinus6 = dataFragment.getProgramListTodayMinus6();
             programListTodayMinus7 = dataFragment.getProgramListTodayMinus7();
             programListOffline = dataFragment.getProgramListOffline();
+            mService = dataFragment.getMediaService();
+            mConnection = dataFragment.getMediaConnection();
+            mMediaServiceIntent = dataFragment.getMediaServiceIntent();
+            bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
         }
+
+        mConnection = new ServiceConnection() {
+            public void onServiceConnected(ComponentName className, IBinder service) {
+                mService = ((LocalBinder<MediaService>) service).getService();
+                dataFragment.setMediaService(mService);
+            }
+
+            public void onServiceDisconnected(ComponentName className) {
+                // As our service is in the same process, this should never be called
+            }
+        };
+        bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
 
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        //start the mediaplayer service
-        Intent mMediaServiceIntent = new Intent(this, MediaService.class);
-        bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
 
         //create expandable list view / set properties
         expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
@@ -130,7 +156,6 @@ public class MainActivity extends AppCompatActivity {
 
         // Create the Adapter
         adapter = new ProgramExpandableAdapter();
-
         adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
 
         // Set the Adapter to expandableList
@@ -299,216 +324,228 @@ public class MainActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
 
+        //Schedule the regular (local) list update via the ProgramExpandableAdapter
         listTimer = new Timer();
-        programDataTimer = new Timer();
-        seekTimer = new Timer();
-
-
-        programDataTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                boolean hasChangedTemp = false;
-                //Create calendar object (today)
-                Calendar today = new GregorianCalendar();
-                //create parser object
-                ORFParser parser = new ORFParser();
-
-                ArrayList<ORFParser.ORFProgram> temp;
-
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListToday)) {
-                    programListToday = temp;
-                    dataFragment.setProgramListToday(temp);
-                    hasChangedTemp = true;
-                }
-
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListTodayMinus1)) {
-                    programListTodayMinus1 = temp;
-                    dataFragment.setProgramListTodayMinus1(temp);
-                    hasChangedTemp = true;
-                }
-
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListTodayMinus2)) {
-                    programListTodayMinus2 = temp;
-                    dataFragment.setProgramListTodayMinus2(temp);
-                    hasChangedTemp = true;
-                }
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListTodayMinus3)) {
-                    programListTodayMinus3 = temp;
-                    dataFragment.setProgramListTodayMinus3(temp);
-                    hasChangedTemp = true;
-                }
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListTodayMinus4)) {
-                    programListTodayMinus4 = temp;
-                    dataFragment.setProgramListTodayMinus4(temp);
-                    hasChangedTemp = true;
-                }
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListTodayMinus5)) {
-                    programListTodayMinus5 = temp;
-                    dataFragment.setProgramListTodayMinus5(temp);
-                    hasChangedTemp = true;
-                }
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListTodayMinus6)) {
-                    programListTodayMinus6 = temp;
-                    dataFragment.setProgramListTodayMinus6(temp);
-                    hasChangedTemp = true;
-                }
-                today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
-                if(!temp.equals(programListTodayMinus7)) {
-                    programListTodayMinus7 = temp;
-                    dataFragment.setProgramListTodayMinus7(temp);
-                    hasChangedTemp = true;
-                }
-
-                temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
-                if(temp != null) {
-                    if (!temp.equals(programListOffline)) {
-                        programListOffline = temp;
-                        dataFragment.setProgramListOffline(temp);
-                        hasChangedTemp = true;
-                    }
-                }
-
-                //if one list object is changed -> set global change flag
-                hasChanged = hasChangedTemp;
-            }
-        }, 0, REFETCH_LIST_INTERVAL_SECONDS * 1000);
-
-        //schedule a timer
         listTimer.schedule(new TimerTask() {
             @Override
             public void run() {
                 handler.post(new Runnable() {
                     public void run() {
-                        TimerMethod();
+                        TimerMethodList();
                     }
                 });
             }
 
         }, 0, 2000);
 
-        //schedule a timer for the time update
-        seekTimer.schedule(new TimerTask() {
+        //schedule the regular update of the remote list
+        programDataTimer = new Timer();
+        programDataTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                handler.post(new Runnable() {
-
-                    Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class)
-                            .setFlags(Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
-                            //.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
-
-                    NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
-                            .setContentTitle("Ö1 - PublicStream")
-                            .setSmallIcon(R.drawable.notification_play).setContentIntent(contentIntent);
-                    NotificationManager mNotificationManager =
-                            (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                    //mNotifyBuilder.setLatestEventInfo(getApplicationContext(), from, message, contentIntent);
+                TimerMethodRemoteList();
+            }
+        }, 0, REFETCH_LIST_INTERVAL_SECONDS * 1000);
 
 
-                    public void run() {
-                        if(mService != null) {
-
-                            SimpleDateFormat formatter = new SimpleDateFormat("mm:ss");
-                            int timeStamp = mService.getCurrentPosition();
-                            String dateString;
-
-                            switch(timeStamp) {
-                                //stopped/preparing... -> time: 0
-                                case -1:
-                                    dateString = formatter.format(new Date(0));
-                                    break;
-                                //pause: no change...
-                                case -2:
-                                    dateString = formatter.format(new Date(currentTime));
-                                    break;
-                                //Playing...
-                                default:
-                                    dateString = formatter.format(new Date(timeStamp));
-                                    currentTime = timeStamp;
-                                    break;
-                            }
-                            //add the separator
-                            dateString += "/";
-
-                            timeStamp = mService.getDuration();
-                            switch(timeStamp) {
-                                case -1:
-                                    dateString += "00:00";
-                                    break;
-                                case -2:
-                                    dateString += formatter.format(new Date(currentDuration));
-                                    break;
-                                default:
-                                    dateString += formatter.format(new Date(timeStamp));
-                                    currentDuration = timeStamp;
-                                    break;
-                            }
-
-                            SeekBar seekbar = (SeekBar) findViewById(R.id.seekBar);
-                            if(!mService.isLive()) {
-                                try {
-                                    seekbar.setProgress((int) (((float) currentTime / (float) currentDuration) * 1000));
-                                } catch (ArithmeticException e) {
-                                    Log.d("PUBLICSTREAM","Progressbar: Div by 0");
-                                }
-                            } else {
-                                seekbar.setProgress(0);
-                            }
-
-                            //set the corresponding notification
-                            switch(timeStamp) {
-                                case -1:
-                                    mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
-                                    isPausedNotified = false;
-                                    break;
-                                case -2:
-                                    if(!isPausedNotified) {
-                                        isPausedNotified = true;
-                                        mNotifyBuilder.setContentText("Pause: " + dateString);
-                                        mNotificationManager.notify(
-                                                MainActivity.NOTIFICATION_PLAY_ID,
-                                                mNotifyBuilder.build());
-                                    }
-                                    break;
-                                default:
-                                    //wenn nicht mehr aktiv -> pausieren...
-                                    mNotifyBuilder.setContentText("Abspielen: " + dateString);
-                                    mNotificationManager.notify(
-                                            MainActivity.NOTIFICATION_PLAY_ID,
-                                            mNotifyBuilder.build());
-                                    isPausedNotified = false;
-                                    break;
-                            }
-
-                            //Update the time in the text view (GUI, bottom right)
-                            TextView time = (TextView)findViewById(R.id.textViewTime);
-                                    time.setText(dateString);
+        //Create the regular update timer for the notifications and the progress bar in the GUI
+        if(seekTimer == null) {
+            seekTimer = new Timer();
+            //schedule a timer for the time update
+            seekTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    handler.post(new Runnable() {
+                        public void run() {
+                            TimerMethodSeek();
                         }
-                    }
-                });
+                    });
+                }
+
+            }, 0, 1000);
+        }
+    }
+
+    private void TimerMethodRemoteList() {
+        boolean hasChangedTemp = false;
+        //Create calendar object (today)
+        Calendar today = new GregorianCalendar();
+        //create parser object
+        ORFParser parser = new ORFParser();
+
+        ArrayList<ORFParser.ORFProgram> temp;
+
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListToday)) {
+            programListToday = temp;
+            dataFragment.setProgramListToday(temp);
+            hasChangedTemp = true;
+        }
+
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListTodayMinus1)) {
+            programListTodayMinus1 = temp;
+            dataFragment.setProgramListTodayMinus1(temp);
+            hasChangedTemp = true;
+        }
+
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListTodayMinus2)) {
+            programListTodayMinus2 = temp;
+            dataFragment.setProgramListTodayMinus2(temp);
+            hasChangedTemp = true;
+        }
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListTodayMinus3)) {
+            programListTodayMinus3 = temp;
+            dataFragment.setProgramListTodayMinus3(temp);
+            hasChangedTemp = true;
+        }
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListTodayMinus4)) {
+            programListTodayMinus4 = temp;
+            dataFragment.setProgramListTodayMinus4(temp);
+            hasChangedTemp = true;
+        }
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListTodayMinus5)) {
+            programListTodayMinus5 = temp;
+            dataFragment.setProgramListTodayMinus5(temp);
+            hasChangedTemp = true;
+        }
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListTodayMinus6)) {
+            programListTodayMinus6 = temp;
+            dataFragment.setProgramListTodayMinus6(temp);
+            hasChangedTemp = true;
+        }
+        today.add(Calendar.DAY_OF_MONTH,-1);
+        temp = parser.getProgramsForDay(today.getTime());
+        if(!temp.equals(programListTodayMinus7)) {
+            programListTodayMinus7 = temp;
+            dataFragment.setProgramListTodayMinus7(temp);
+            hasChangedTemp = true;
+        }
+
+        temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+        if(temp != null) {
+            if (!temp.equals(programListOffline)) {
+                programListOffline = temp;
+                dataFragment.setProgramListOffline(temp);
+                hasChangedTemp = true;
+            }
+        }
+
+        //if one list object is changed -> set global change flag
+        hasChanged = hasChangedTemp;
+    }
+
+    private  void TimerMethodSeek() {
+        if(mService != null) {
+            Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class)
+                    .setFlags(Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
+            //.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
+
+            NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
+                    .setContentTitle("Ö1 - PublicStream")
+                    .setSmallIcon(R.drawable.notification_play).setContentIntent(contentIntent);
+            NotificationManager mNotificationManager =
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            //mNotifyBuilder.setLatestEventInfo(getApplicationContext(), from, message, contentIntent);
+            SimpleDateFormat formatter = new SimpleDateFormat("mm:ss");
+            int timeStamp = mService.getCurrentPosition();
+            String dateString;
+
+            switch(timeStamp) {
+                //stopped/preparing... -> time: 0
+                case -1:
+                    dateString = formatter.format(new Date(0));
+                    break;
+                //pause: no change...
+                case -2:
+                    dateString = formatter.format(new Date(currentTime));
+                    break;
+                //Playing...
+                default:
+                    dateString = formatter.format(new Date(timeStamp));
+                    currentTime = timeStamp;
+                    break;
+            }
+            //add the separator
+            dateString += "/";
+
+            timeStamp = mService.getDuration();
+            switch(timeStamp) {
+                case -1:
+                    dateString += "00:00";
+                    break;
+                case -2:
+                    dateString += formatter.format(new Date(currentDuration));
+                    break;
+                default:
+                    dateString += formatter.format(new Date(timeStamp));
+                    currentDuration = timeStamp;
+                    break;
             }
 
-        }, 0, 1000);
+            SeekBar seekbar = (SeekBar) findViewById(R.id.seekBar);
+            if(!mService.isLive()) {
+                try {
+                    seekbar.setProgress((int) (((float) currentTime / (float) currentDuration) * 1000));
+                } catch (ArithmeticException e) {
+                    Log.d("PUBLICSTREAM","Progressbar: Div by 0");
+                }
+            } else {
+                seekbar.setProgress(0);
+            }
+
+            //set the corresponding notification
+            switch(timeStamp) {
+                case -1:
+                    //cancel() if the playback is stopped
+                    mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
+                    isPausedNotified = false;
+                    Log.i("NOTE","STOPPED -> cancel");
+                    break;
+                case -2:
+                    //if paused && not notified already (done only once)
+                    if(!isPausedNotified) {
+                        isPausedNotified = true;
+                        mNotifyBuilder.setContentText("Pause: " + dateString);
+                        mNotificationManager.notify(
+                                MainActivity.NOTIFICATION_PLAY_ID,
+                                mNotifyBuilder.build());
+                        Log.i("NOTE", "PAUSED -> new notification");
+                    }
+                    Log.i("NOTE","PAUSED -> already notified");
+                    break;
+                default:
+                    //if the playback is active, display the current time
+                    mNotifyBuilder.setContentText("Abspielen: " + dateString);
+                    mNotificationManager.notify(
+                            MainActivity.NOTIFICATION_PLAY_ID,
+                            mNotifyBuilder.build());
+                    isPausedNotified = false;
+                    Log.i("NOTE","PLAY -> update...");
+                    break;
+            }
+
+            //Update the time in the text view (GUI, bottom right)
+            TextView time = (TextView)findViewById(R.id.textViewTime);
+            time.setText(dateString);
+        }
     }
 
 
-
     /** update the list view, the data is fetched in the other timer method */
-    private void TimerMethod() {
+    private void TimerMethodList() {
         adapter.update(programListToday, programListTodayMinus1,
                 programListTodayMinus2, programListTodayMinus3,
                 programListTodayMinus4, programListTodayMinus5,

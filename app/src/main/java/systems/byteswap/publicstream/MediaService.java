@@ -158,9 +158,21 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     @Override
     public void onDestroy() {
         if(mMediaPlayer != null) {
-            mMediaPlayer.release();
-            wifiLock.release();
-            wakeLock.release();
+            try {
+                mMediaPlayer.release();
+            } catch (Exception e) {
+                Log.e("MEDIASERVICE_DESTROY",e.getMessage());
+            }
+            try {
+                wifiLock.release();
+            } catch (Exception e) {
+                Log.e("MEDIASERVICE_DESTROY",e.getMessage());
+            }
+            try {
+                wakeLock.release();
+            } catch (Exception e) {
+                Log.e("MEDIASERVICE_DESTROY",e.getMessage());
+            }
             mMediaPlayer = null;
         }
     }
