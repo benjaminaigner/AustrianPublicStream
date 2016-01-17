@@ -33,6 +33,8 @@ public class MainFragment extends Fragment {
     private ProgramExpandableAdapter adapter;
     private ExpandableListView expandableList;
 
+    private String textPlayButton;
+
 
     // this method is only called once for this fragment
     @Override
@@ -153,5 +155,13 @@ public class MainFragment extends Fragment {
 
     public void setAdapter(ProgramExpandableAdapter adapter) {
         this.adapter = adapter;
+    }
+
+    public String getTextPlayButton() {
+        return textPlayButton;
+    }
+
+    public void setTextPlayButton(String textPlayButton) {
+        this.textPlayButton = textPlayButton;
     }
 }

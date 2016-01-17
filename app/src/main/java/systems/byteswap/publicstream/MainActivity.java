@@ -1,6 +1,7 @@
 package systems.byteswap.publicstream;
 
 import android.app.FragmentManager;
+import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ComponentName;
@@ -136,6 +137,7 @@ public class MainActivity extends AppCompatActivity {
 
             //start the mediaplayer service
             mMediaServiceIntent = new Intent(this, MediaService.class);
+            startService(mMediaServiceIntent);
             bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
             dataFragment.setMediaServiceIntent(mMediaServiceIntent);
 
@@ -168,27 +170,25 @@ public class MainActivity extends AppCompatActivity {
             mConnection = dataFragment.getMediaConnection();
             mMediaServiceIntent = dataFragment.getMediaServiceIntent();
             bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
-            adapter = dataFragment.getAdapter();
-            expandableList = dataFragment.getExpandableList();
+            adapter = new ProgramExpandableAdapter();
+            adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+
+            //create expandable list view / set properties
+            expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
+            expandableList.setDividerHeight(2);
+            expandableList.setGroupIndicator(null);
+            expandableList.setClickable(true);
+            // Set the Adapter to expandableList
+            expandableList.setAdapter(adapter);
+
+            TextView textViewCurrentStream = (TextView)findViewById(R.id.textViewCurrentStream);
+            if(dataFragment.getTextPlayButton() != null) textViewCurrentStream.setText(dataFragment.getTextPlayButton());
         }
 
         //load settings from preferences
         SharedPreferences settings = getSharedPreferences(PREFERENCES, 0);
         showPausedNotification = settings.getBoolean(SETTINGS_SHOW_PAUSED_NOTIFICATION,true);
         showPlayNotification = settings.getBoolean(SETTINGS_SHOW_PLAY_NOTIFICATION,true);
-
-        mConnection = new ServiceConnection() {
-            public void onServiceConnected(ComponentName className, IBinder service) {
-                mService = ((LocalBinder<MediaService>) service).getService();
-                dataFragment.setMediaService(mService);
-            }
-
-            public void onServiceDisconnected(ComponentName className) {
-                // As our service is in the same process, this should never be called
-            }
-        };
-        bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
-
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -204,6 +204,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 mService.onCommand(MediaService.ACTION_LOAD,ORFParser.ORF_LIVE_URL);
                 TextView text = (TextView)findViewById(R.id.textViewCurrentStream);
+                if(dataFragment != null) dataFragment.setTextPlayButton("LIVE");
                 text.setText("LIVE");
             }
         });
@@ -242,6 +243,7 @@ public class MainActivity extends AppCompatActivity {
     public void programClickListener(ORFParser.ORFProgram child) {
         TextView streamtext = (TextView)findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
+        if(dataFragment != null) dataFragment.setTextPlayButton(child.title);
         Toast.makeText(MainActivity.this, "Play", Toast.LENGTH_SHORT).show();
         mService.onCommand(MediaService.ACTION_LOAD, child.url);
         //mService.onCommand(MediaService.ACTION_LOAD, child.url, child.id);
@@ -494,6 +496,7 @@ public class MainActivity extends AppCompatActivity {
                     .setSmallIcon(R.drawable.notification_play).setContentIntent(contentIntent);
             NotificationManager mNotificationManager =
                     (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            Notification mNotification;
             //mNotifyBuilder.setLatestEventInfo(getApplicationContext(), from, message, contentIntent);
             SimpleDateFormat formatter = new SimpleDateFormat("mm:ss");
             int timeStamp = mService.getCurrentPosition();
@@ -553,23 +556,24 @@ public class MainActivity extends AppCompatActivity {
                 case -2:
                     //if paused && not notified already (done only once)
                     if(!isPausedNotified) {
+                        mService.stopForeground(true);
                         isPausedNotified = true;
                         mNotifyBuilder.setContentText("Pause: " + dateString);
+                        mNotification = mNotifyBuilder.build();
                         mNotificationManager.notify(
-                                MainActivity.NOTIFICATION_PLAY_ID,
-                                mNotifyBuilder.build());
+                                MainActivity.NOTIFICATION_PLAY_ID, mNotification);
                         Log.i("NOTE", "PAUSED -> new notification");
                     }
+
                     Log.i("NOTE","PAUSED -> already notified");
                     break;
                 default:
                     //if the playback is active, display the current time
                     mNotifyBuilder.setContentText("Abspielen: " + dateString);
-                    mNotificationManager.notify(
-                            MainActivity.NOTIFICATION_PLAY_ID,
-                            mNotifyBuilder.build());
+                    mNotification = mNotifyBuilder.build();
                     isPausedNotified = false;
                     Log.i("NOTE","PLAY -> update...");
+                    mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID,mNotification);
                     break;
             }
 

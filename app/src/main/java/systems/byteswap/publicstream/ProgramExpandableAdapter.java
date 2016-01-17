@@ -90,8 +90,6 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     {
 
         if (convertView == null) {
-            //TODO: vorher war NULL als 2. param
-            //convertView = inflater.inflate(R.layout.parent_view, parent);
             convertView = inflater.inflate(R.layout.parent_view, null);
         }
 
