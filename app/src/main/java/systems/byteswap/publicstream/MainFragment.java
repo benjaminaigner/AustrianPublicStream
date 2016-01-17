@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.app.Fragment;
+import android.widget.ExpandableListView;
+
 import java.util.ArrayList;
 
 /**
@@ -28,6 +30,8 @@ public class MainFragment extends Fragment {
     private MediaService mService;
     private ServiceConnection mConnection;
     private Intent mServiceIntent;
+    private ProgramExpandableAdapter adapter;
+    private ExpandableListView expandableList;
 
 
     // this method is only called once for this fragment
@@ -133,5 +137,21 @@ public class MainFragment extends Fragment {
 
     public void setMediaServiceIntent(Intent mServiceIntent) {
         this.mServiceIntent = mServiceIntent;
+    }
+
+    public ExpandableListView getExpandableList() {
+        return expandableList;
+    }
+
+    public void setExpandableList(ExpandableListView expandableList) {
+        this.expandableList = expandableList;
+    }
+
+    public ProgramExpandableAdapter getAdapter() {
+        return adapter;
+    }
+
+    public void setAdapter(ProgramExpandableAdapter adapter) {
+        this.adapter = adapter;
     }
 }

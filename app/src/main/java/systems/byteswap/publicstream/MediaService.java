@@ -1,5 +1,6 @@
 package systems.byteswap.publicstream;
 
+import android.app.Notification;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -208,6 +209,13 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         }
     }
 
+    public void startForegroundMedia(int notificationId, Notification notification) {
+        this.startForeground(notificationId,notification);
+    }
+
+    public void stopForegroundMedia() {
+        this.stopForeground(false);
+    }
 
     @Override
     public void onNewLayout(IVLCVout ivlcVout, int i, int i1, int i2, int i3, int i4, int i5) {

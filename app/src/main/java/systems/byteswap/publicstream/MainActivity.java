@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -45,6 +46,7 @@ import java.util.TimerTask;
 //TODO: Timer & weiter Klassen im MainFragment sichern...
 //TODO: löschen button einbauen für offline sachen (minor, löschen geht auch im filemanager)
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
+//TODO: die notifications als service auslagern...
 
 public class MainActivity extends AppCompatActivity {
     /** number of seconds between each list fetching action (getting all JSON files of programs, takes about 2-5s) **/
@@ -54,6 +56,17 @@ public class MainActivity extends AppCompatActivity {
     public static int NOTIFICATION_DOWNLOAD_ID = 1;
     /** ID for the play notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_PLAY_ID = 2;
+
+    /** shared preferences storage name */
+    public static final String PREFERENCES = "PreferencesFile";
+    /** key for the shared preferences: download folder */
+    public static String SETTINGS_DOWNLOADFOLDER = "settingDownloadFolder";
+    /** key for the shared preferences: show a notification while playing */
+    public static String SETTINGS_SHOW_PLAY_NOTIFICATION = "settingPlayNotification";
+    /** key for the shared preferences: show a notification if paused */
+    public static String SETTINGS_SHOW_PAUSED_NOTIFICATION = "settingPausedNotification";
+    /** key for the shared preferences: show a playback notifications on the lock screen*/
+    public static String SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION = "settingLockscreenNotification";
 
 
     Timer listTimer;
@@ -65,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
     MediaService mService;
     int currentTime;
     int currentDuration;
+
+
     private MainFragment dataFragment;
     private ArrayList<ORFParser.ORFProgram> programListToday;
     private ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
@@ -75,8 +90,16 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
     private ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
     private ArrayList<ORFParser.ORFProgram> programListOffline;
+    /** boolean flag to show if a notification was already created. If paused, only one notification is issued */
     boolean isPausedNotified = false;
 
+    /** flag (from the settings) to show if a notification is issued during playback */
+    boolean showPausedNotification = true;
+
+    /** flag (from the settings) to show if a notification is issued if paused */
+    boolean showPlayNotification = true;
+
+    /** boolean flag for updating the list: if true, some element of the list was changed -> renew the adapter */
     public boolean hasChanged = false;
 
     private ServiceConnection mConnection;
@@ -115,7 +138,23 @@ public class MainActivity extends AppCompatActivity {
             mMediaServiceIntent = new Intent(this, MediaService.class);
             bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
             dataFragment.setMediaServiceIntent(mMediaServiceIntent);
+
+            //create expandable list view / set properties
+            expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
+            expandableList.setDividerHeight(2);
+            expandableList.setGroupIndicator(null);
+            expandableList.setClickable(true);
+            dataFragment.setExpandableList(expandableList);
+
+            // Create the Adapter
+            adapter = new ProgramExpandableAdapter();
+            adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+            dataFragment.setAdapter(adapter);
+
+            // Set the Adapter to expandableList
+            expandableList.setAdapter(adapter);
         } else {
+            //Restore everything necessary from the dataFragment (if available)
             programListToday = dataFragment.getProgramListToday();
             programListTodayMinus1 = dataFragment.getProgramListTodayMinus1();
             programListTodayMinus2 = dataFragment.getProgramListTodayMinus2();
@@ -129,7 +168,14 @@ public class MainActivity extends AppCompatActivity {
             mConnection = dataFragment.getMediaConnection();
             mMediaServiceIntent = dataFragment.getMediaServiceIntent();
             bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
+            adapter = dataFragment.getAdapter();
+            expandableList = dataFragment.getExpandableList();
         }
+
+        //load settings from preferences
+        SharedPreferences settings = getSharedPreferences(PREFERENCES, 0);
+        showPausedNotification = settings.getBoolean(SETTINGS_SHOW_PAUSED_NOTIFICATION,true);
+        showPlayNotification = settings.getBoolean(SETTINGS_SHOW_PLAY_NOTIFICATION,true);
 
         mConnection = new ServiceConnection() {
             public void onServiceConnected(ComponentName className, IBinder service) {
@@ -147,20 +193,10 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        addGUIListener();
+    }
 
-        //create expandable list view / set properties
-        expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
-        expandableList.setDividerHeight(2);
-        expandableList.setGroupIndicator(null);
-        expandableList.setClickable(true);
-
-        // Create the Adapter
-        adapter = new ProgramExpandableAdapter();
-        adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-
-        // Set the Adapter to expandableList
-        expandableList.setAdapter(adapter);
-
+    public void addGUIListener() {
         //add a click listener to the "Live" button
         Button buttonLive = (Button) findViewById(R.id.buttonLive);
         buttonLive.setOnClickListener(new View.OnClickListener() {
@@ -200,7 +236,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-
     }
 
     //listener for list items clicks...
@@ -232,7 +267,8 @@ public class MainActivity extends AppCompatActivity {
                     urlConnection.connect();
 
                     //create the file
-                    File folder = new File(Environment.getExternalStorageDirectory().toString() + "/Ö1-Beiträge");
+                    SharedPreferences settings = getSharedPreferences(PREFERENCES, 0);
+                    File folder = new File(settings.getString(SETTINGS_DOWNLOADFOLDER,Environment.getExternalStorageDirectory().toString() + "/Ö1-Beiträge"));
                     //String fileName = datum + "-" + child.time + "-" + child.shortTitle + ".mp3";
                     fileName = datum + "-" + child.time.replace(':','.') + "-" + child.shortTitle + ".mp3";
                     folder.mkdirs();
