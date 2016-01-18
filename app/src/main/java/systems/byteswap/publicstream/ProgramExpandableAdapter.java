@@ -80,6 +80,21 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
                 activity.programClickListener(child.get(childPosition));
             }
         });
+
+        convertView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                if(groupPosition == 8) {
+                    activity.programLongClickListener(child.get(childPosition),true, "");
+                } else {
+                    //Create calendar object (today)
+                    Calendar today = new GregorianCalendar();
+                    android.text.format.DateFormat df = new android.text.format.DateFormat();
+                    activity.programLongClickListener(child.get(childPosition),false, df.format("dd.MM.yyyy", today).toString());
+                }
+                return true;
+            }
+        });
         return convertView;
     }
 

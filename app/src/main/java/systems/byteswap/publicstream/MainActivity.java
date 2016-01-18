@@ -1,11 +1,13 @@
 package systems.byteswap.publicstream;
 
+import android.app.AlertDialog;
 import android.app.FragmentManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
@@ -43,9 +45,9 @@ import java.util.TimerTask;
 
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
 //TODO:; BUG:
-//Android 5: Liste wird nicht richig gesichret (im 4 schon)
+//Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
+//Wenn ein Beitrag geladen wurde (offline) verschwinden teilweise die Download Symbole...
 
-//TODO: löschen button einbauen für offline sachen (minor, löschen geht auch im filemanager)
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
 public class MainActivity extends AppCompatActivity {
@@ -268,6 +270,48 @@ public class MainActivity extends AppCompatActivity {
         //schedule the perdiodic seek time / notification update
         handler.removeCallbacks(mRunnableSeek);
         handler.postDelayed(mRunnableSeek, 1000);
+    }
+
+    //listener for list items clicks...
+    public void programLongClickListener(final ORFParser.ORFProgram child, boolean toDelete, String datum) {
+        if(toDelete) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setMessage("Wollen Sie den Beitrag " + child.shortTitle + " wirklich löschen?")
+                    .setTitle("Löschen");
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                    //delete the list entry & update the list
+                    ORFParser parser = new ORFParser();
+
+                    parser.removeProgramOffline(child, getBaseContext().getExternalCacheDir());
+                    Toast.makeText(MainActivity.this, "Beitrag gelöscht", Toast.LENGTH_SHORT).show();
+                    //Update the list
+                    ArrayList<ORFParser.ORFProgram> temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+                    if(temp != null) {
+                        programListOffline = temp;
+                        dataFragment.setProgramListOffline(temp);
+                    }
+                    if(expandableList != null && adapter != null) {
+                        adapter.update(programListToday, programListTodayMinus1,
+                                programListTodayMinus2, programListTodayMinus3,
+                                programListTodayMinus4, programListTodayMinus5,
+                                programListTodayMinus6, programListTodayMinus7,
+                                programListOffline);
+                        expandableList.setAdapter(adapter);
+                    }
+                }
+            });
+            builder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                    // User cancelled the dialog
+                }
+            });
+
+            builder.create().show();
+
+        } else {
+            programDownloadClickListener(child, datum);
+        }
     }
 
 

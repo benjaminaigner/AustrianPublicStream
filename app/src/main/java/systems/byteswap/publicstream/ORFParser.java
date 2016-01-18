@@ -41,19 +41,19 @@ import javax.xml.transform.stream.StreamResult;
  */
 public class ORFParser {
     private ArrayList<ORFProgram> programList;
-    public static String ORF_FULL_BASE_URL = "http://oe1.orf.at/programm/konsole/tag/";
-    public static String ORF_LIVE_URL = "http://mp3stream3.apasf.apa.at:8000/;stream.mp3";
-    public static String OFFLINE_XML_NAME = "oe1_offline.xml";
+    public final static String ORF_FULL_BASE_URL = "http://oe1.orf.at/programm/konsole/tag/";
+    public final static String ORF_LIVE_URL = "http://mp3stream3.apasf.apa.at:8000/;stream.mp3";
+    public final static String OFFLINE_XML_NAME = "oe1_offline.xml";
 
-    public static String XML_PROGRAM = "program";
-    public static String XML_ID = "id";
-    public static String XML_TIME = "time";
-    public static String XML_TITLE = "title";
-    public static String XML_SHORTTITLE = "shorttitle";
-    public static String XML_INFO = "info";
-    public static String XML_URL = "url";
-    public static String XML_FILENAME = "filename";
-    public static String XML_DAYLABEL = "daylabel";
+    public final static String XML_PROGRAM = "program";
+    public final static String XML_ID = "id";
+    public final static String XML_TIME = "time";
+    public final static String XML_TITLE = "title";
+    public final static String XML_SHORTTITLE = "shorttitle";
+    public final static String XML_INFO = "info";
+    public final static String XML_URL = "url";
+    public final static String XML_FILENAME = "filename";
+    public final static String XML_DAYLABEL = "daylabel";
 
     /*public static String ORF_DURATION_URL1 = "http://oe1.orf.at/programm/";
     public static String ORF_DURATION_URL2 = "/playlist";*/
@@ -176,6 +176,72 @@ public class ORFParser {
             Log.e("PUBLICSTREAM", e.getMessage());
             return null;
         }
+    }
+
+    public void removeProgramOffline(ORFProgram program, File cacheDir) {
+        try {
+            //open the XML file
+            Document doc;
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Element root;
+            try {
+                InputSource is = new InputSource();
+                is.setCharacterStream(new FileReader(new File(cacheDir, OFFLINE_XML_NAME)));
+                doc = db.parse(is);
+                root = doc.getDocumentElement();
+            } catch (FileNotFoundException e) {
+                return;
+            }
+
+            NodeList currentList = root.getElementsByTagName(XML_PROGRAM);
+            String fileNameToDelete = "";
+
+            for(int i = 0; i<currentList.getLength(); i++) {
+                Node deleteProgram = currentList.item(i);
+                NodeList deleteNodeList = deleteProgram.getChildNodes();
+                boolean delete = false;
+
+                for(int j = 0; j<deleteNodeList.getLength(); j++) {
+                    switch (deleteNodeList.item(j).getNodeName()) {
+                        case XML_ID:
+                            delete = deleteNodeList.item(j).getFirstChild().getNodeValue().equals(String.valueOf(program.id));
+                            break;
+                        case XML_DAYLABEL:
+                            delete = deleteNodeList.item(j).getFirstChild().getNodeValue().equals(String.valueOf(program.dayLabel));
+                            break;
+
+                        case XML_FILENAME:
+                            fileNameToDelete = deleteNodeList.item(j).getFirstChild().getNodeValue();
+                        //only compare 2 fields (id and day, should be enough)
+                        default:
+                            break;
+                    }
+                }
+
+                if(delete)
+                {
+                    root.removeChild(deleteProgram);
+                    if(!fileNameToDelete.equals("")) {
+                        File del = new File(fileNameToDelete);
+                        //noinspection ResultOfMethodCallIgnored
+                        del.delete();
+                        Log.d("FILE", "Removed File: " + fileNameToDelete);
+                    }
+                    break;
+                }
+            }
+
+            //Rewrite the XML to the external storage (cache)...
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            FileWriter writer = new FileWriter(new File(cacheDir, OFFLINE_XML_NAME));
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+        } catch (Exception e) {
+            Log.e("PUBLICSTREAM","XML write failed: " + e.getMessage());
+        }
+
     }
 
     public void addProgramOffline(ORFProgram program, File cacheDir) {
