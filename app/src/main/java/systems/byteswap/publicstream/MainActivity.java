@@ -43,11 +43,10 @@ import java.util.TimerTask;
 
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
 //TODO:; BUG:
-//Nicht alle sachen werden im Fragment gesichert...
-//TODO: Timer & weiter Klassen im MainFragment sichern...
+//Android 5: Liste wird nicht richig gesichret (im 4 schon)
+
 //TODO: löschen button einbauen für offline sachen (minor, löschen geht auch im filemanager)
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
-//TODO: die notifications als service auslagern...
 
 public class MainActivity extends AppCompatActivity {
     /** number of seconds between each list fetching action (getting all JSON files of programs, takes about 2-5s) **/
@@ -69,16 +68,32 @@ public class MainActivity extends AppCompatActivity {
     /** key for the shared preferences: show a playback notifications on the lock screen*/
     public static String SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION = "settingLockscreenNotification";
 
-
-    Timer listTimer;
-    Timer programDataTimer;
-    Timer seekTimer;
     ProgramExpandableAdapter adapter;
     ExpandableListView expandableList;
-    final Handler handler = new Handler();
+
+    //Handler to process all postDelayed operations (timer replacement for Android)
+    private Handler handler = new Handler();
+
     MediaService mService;
     int currentTime;
     int currentDuration;
+
+    //Timer instance for the remotelist (not working with handler -> NetworkOnMainThread exception)
+    Timer programDataTimer;
+
+    //Runnable instance for the seek update: time in the main activity & notification (will be posted to the handler)
+    Runnable mRunnableSeek = new Runnable() {
+        public void run() {
+            TimerMethodSeek();
+        }
+    };
+
+    //Runnable instance for the local list (will be posted to the handler)
+    Runnable mRunnableList = new Runnable() {
+        public void run() {
+            TimerMethodList();
+        }
+    };
 
 
     private MainFragment dataFragment;
@@ -105,7 +120,6 @@ public class MainActivity extends AppCompatActivity {
 
     private ServiceConnection mConnection;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -121,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
         if (dataFragment == null) {
             // add the fragment
             dataFragment = new MainFragment();
-            fm.beginTransaction().add(dataFragment, "data").commit();
+
 
             mConnection = new ServiceConnection() {
                 public void onServiceConnected(ComponentName className, IBinder service) {
@@ -155,6 +169,8 @@ public class MainActivity extends AppCompatActivity {
 
             // Set the Adapter to expandableList
             expandableList.setAdapter(adapter);
+
+            fm.beginTransaction().add(dataFragment, "data").commit();
         } else {
             //Restore everything necessary from the dataFragment (if available)
             programListToday = dataFragment.getProgramListToday();
@@ -202,9 +218,9 @@ public class MainActivity extends AppCompatActivity {
         buttonLive.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.onCommand(MediaService.ACTION_LOAD,ORFParser.ORF_LIVE_URL);
-                TextView text = (TextView)findViewById(R.id.textViewCurrentStream);
-                if(dataFragment != null) dataFragment.setTextPlayButton("LIVE");
+                mService.onCommand(MediaService.ACTION_LOAD, ORFParser.ORF_LIVE_URL);
+                TextView text = (TextView) findViewById(R.id.textViewCurrentStream);
+                if (dataFragment != null) dataFragment.setTextPlayButton("LIVE");
                 text.setText("LIVE");
             }
         });
@@ -215,6 +231,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
+                handler.removeCallbacks(mRunnableSeek);
+                handler.postDelayed(mRunnableSeek, 1000);
             }
         });
 
@@ -232,8 +250,8 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                if(mService != null) {
-                    mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float)seekBar.getProgress()/1000));
+                if (mService != null) {
+                    mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float) seekBar.getProgress() / 1000));
                 }
             }
         });
@@ -241,12 +259,15 @@ public class MainActivity extends AppCompatActivity {
 
     //listener for list items clicks...
     public void programClickListener(ORFParser.ORFProgram child) {
-        TextView streamtext = (TextView)findViewById(R.id.textViewCurrentStream);
+        TextView streamtext = (TextView) findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
         if(dataFragment != null) dataFragment.setTextPlayButton(child.title);
         Toast.makeText(MainActivity.this, "Play", Toast.LENGTH_SHORT).show();
         mService.onCommand(MediaService.ACTION_LOAD, child.url);
-        //mService.onCommand(MediaService.ACTION_LOAD, child.url, child.id);
+
+        //schedule the perdiodic seek time / notification update
+        handler.removeCallbacks(mRunnableSeek);
+        handler.postDelayed(mRunnableSeek, 1000);
     }
 
 
@@ -362,20 +383,12 @@ public class MainActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
 
+        //on resume: no delay for the first execution...
+
         //Schedule the regular (local) list update via the ProgramExpandableAdapter
-        listTimer = new Timer();
-        listTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                handler.post(new Runnable() {
-                    public void run() {
-                        TimerMethodList();
-                    }
-                });
-            }
+        handler.post(mRunnableList);
 
-        }, 0, 2000);
-
+        //schedule the regular update of the remote list
         //schedule the regular update of the remote list
         programDataTimer = new Timer();
         programDataTimer.schedule(new TimerTask() {
@@ -387,21 +400,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         //Create the regular update timer for the notifications and the progress bar in the GUI
-        if(seekTimer == null) {
-            seekTimer = new Timer();
-            //schedule a timer for the time update
-            seekTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    handler.post(new Runnable() {
-                        public void run() {
-                            TimerMethodSeek();
-                        }
-                    });
-                }
-
-            }, 0, 1000);
-        }
+        handler.removeCallbacks(mRunnableSeek);
+        handler.post(mRunnableSeek);
     }
 
     private void TimerMethodRemoteList() {
@@ -458,7 +458,7 @@ public class MainActivity extends AppCompatActivity {
         }
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListTodayMinus6)) {
+        if (!temp.equals(programListTodayMinus6)) {
             programListTodayMinus6 = temp;
             dataFragment.setProgramListTodayMinus6(temp);
             hasChangedTemp = true;
@@ -484,7 +484,7 @@ public class MainActivity extends AppCompatActivity {
         hasChanged = hasChangedTemp;
     }
 
-    private  void TimerMethodSeek() {
+    private void TimerMethodSeek() {
         if(mService != null) {
             Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class)
                     .setFlags(Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
@@ -552,6 +552,7 @@ public class MainActivity extends AppCompatActivity {
                     mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
                     isPausedNotified = false;
                     Log.i("NOTE","STOPPED -> cancel");
+                    handler.removeCallbacks(mRunnableSeek);
                     break;
                 case -2:
                     //if paused && not notified already (done only once)
@@ -564,7 +565,7 @@ public class MainActivity extends AppCompatActivity {
                                 MainActivity.NOTIFICATION_PLAY_ID, mNotification);
                         Log.i("NOTE", "PAUSED -> new notification");
                     }
-
+                    handler.removeCallbacks(mRunnableSeek);
                     Log.i("NOTE","PAUSED -> already notified");
                     break;
                 default:
@@ -574,6 +575,7 @@ public class MainActivity extends AppCompatActivity {
                     isPausedNotified = false;
                     Log.i("NOTE","PLAY -> update...");
                     mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID,mNotification);
+                    handler.postDelayed(mRunnableSeek,1000);
                     break;
             }
 
@@ -595,16 +597,16 @@ public class MainActivity extends AppCompatActivity {
             expandableList.setAdapter(adapter);
             hasChanged = false;
         }
+        //re-schedule this runnable...
+        handler.postDelayed(mRunnableList,2000);
     }
 
     @Override
     public void onPause() {
         super.onPause();
         //Stop the regular list update
-        listTimer.cancel();
         programDataTimer.cancel();
-        //TODO: braucht das viel Akku wenn der Timer immer läuft?
-        //seekTimer.cancel();
+        handler.removeCallbacks(mRunnableList);
     }
 
     @Override

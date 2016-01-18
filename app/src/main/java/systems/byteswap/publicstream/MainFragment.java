@@ -7,6 +7,7 @@ import android.app.Fragment;
 import android.widget.ExpandableListView;
 
 import java.util.ArrayList;
+import java.util.Timer;
 
 /**
  * Basic fragment to store all list, even on runtime changes (resize/orientation change)
@@ -33,6 +34,9 @@ public class MainFragment extends Fragment {
     private ProgramExpandableAdapter adapter;
     private ExpandableListView expandableList;
 
+    private Timer seekTimer;
+    private Timer programDataTimer;
+    private Timer listTimer;
     private String textPlayButton;
 
 
@@ -163,5 +167,29 @@ public class MainFragment extends Fragment {
 
     public void setTextPlayButton(String textPlayButton) {
         this.textPlayButton = textPlayButton;
+    }
+
+    public Timer getSeekTimer() {
+        return seekTimer;
+    }
+
+    public void setSeekTimer(Timer seekTimer) {
+        this.seekTimer = seekTimer;
+    }
+
+    public Timer getProgramDataTimer() {
+        return programDataTimer;
+    }
+
+    public void setProgramDataTimer(Timer programDataTimer) {
+        this.programDataTimer = programDataTimer;
+    }
+
+    public Timer getListTimer() {
+        return listTimer;
+    }
+
+    public void setListTimer(Timer listTimer) {
+        this.listTimer = listTimer;
     }
 }
