@@ -1,13 +1,33 @@
+/**
+ Copyright:
+ 2015/2016 Benjamin Aigner
+ developer.google.com
+
+ This file is part of AustrianPublicStream.
+
+ AustrianPublicStream is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ AustrianPublicStream is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with AustrianPublicStream.  If not, see <http://www.gnu.org/licenses/>.
+ **/
+
 package systems.byteswap.publicstream;
 
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
 import android.support.annotation.LayoutRes;
-import android.support.annotation.Nullable;
+import android.support.annotation.NonNull;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatDelegate;
-import android.support.v7.widget.Toolbar;
 import android.view.MenuInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,10 +57,7 @@ public abstract class AppCompatPreferenceActivity extends PreferenceActivity {
         return getDelegate().getSupportActionBar();
     }
 
-    public void setSupportActionBar(@Nullable Toolbar toolbar) {
-        getDelegate().setSupportActionBar(toolbar);
-    }
-
+    @NonNull
     @Override
     public MenuInflater getMenuInflater() {
         return getDelegate().getMenuInflater();

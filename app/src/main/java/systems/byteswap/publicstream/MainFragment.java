@@ -1,3 +1,23 @@
+/**
+ Copyright:
+ 2015/2016 Benjamin Aigner
+
+ This file is part of AustrianPublicStream.
+
+ AustrianPublicStream is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ AustrianPublicStream is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with AustrianPublicStream.  If not, see <http://www.gnu.org/licenses/>.
+ **/
+
 package systems.byteswap.publicstream;
 
 import android.content.Intent;
@@ -7,10 +27,9 @@ import android.app.Fragment;
 import android.widget.ExpandableListView;
 
 import java.util.ArrayList;
-import java.util.Timer;
 
 /**
- * Basic fragment to store all list, even on runtime changes (resize/orientation change)
+ * Basic fragment to store all information, even on runtime changes (resize/orientation change)
  */
 public class MainFragment extends Fragment {
 
@@ -34,9 +53,6 @@ public class MainFragment extends Fragment {
     private ProgramExpandableAdapter adapter;
     private ExpandableListView expandableList;
 
-    private Timer seekTimer;
-    private Timer programDataTimer;
-    private Timer listTimer;
     private String textPlayButton;
 
 
@@ -145,16 +161,8 @@ public class MainFragment extends Fragment {
         this.mServiceIntent = mServiceIntent;
     }
 
-    public ExpandableListView getExpandableList() {
-        return expandableList;
-    }
-
     public void setExpandableList(ExpandableListView expandableList) {
         this.expandableList = expandableList;
-    }
-
-    public ProgramExpandableAdapter getAdapter() {
-        return adapter;
     }
 
     public void setAdapter(ProgramExpandableAdapter adapter) {
@@ -169,27 +177,11 @@ public class MainFragment extends Fragment {
         this.textPlayButton = textPlayButton;
     }
 
-    public Timer getSeekTimer() {
-        return seekTimer;
+    public ProgramExpandableAdapter getAdapter() {
+        return adapter;
     }
 
-    public void setSeekTimer(Timer seekTimer) {
-        this.seekTimer = seekTimer;
-    }
-
-    public Timer getProgramDataTimer() {
-        return programDataTimer;
-    }
-
-    public void setProgramDataTimer(Timer programDataTimer) {
-        this.programDataTimer = programDataTimer;
-    }
-
-    public Timer getListTimer() {
-        return listTimer;
-    }
-
-    public void setListTimer(Timer listTimer) {
-        this.listTimer = listTimer;
+    public ExpandableListView getExpandableList() {
+        return expandableList;
     }
 }

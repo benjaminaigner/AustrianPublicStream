@@ -1,64 +1,60 @@
+<!--
+    Copyright:
+    2015/2016 Benjamin Aigner
+
+    This file is part of AustrianPublicStream.
+
+    AustrianPublicStream is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    AustrianPublicStream is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with AustrianPublicStream.  If not, see <http://www.gnu.org/licenses/>.
+-->
 <resources>
     <string name="app_name">PublicStream</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_settings">Settings</string>
 
-    <!-- Strings related to Settings -->
+    <!-- Strings related to Settings - shared preferences names (used allover the app) -->
+    <string name="SETTINGS_DOWNLOADFOLDER">settingDownloadFolder</string>
+    <string name="SETTINGS_SHOW_PLAY_NOTIFICATION">settingPlayNotification</string>
+    <string name="SETTINGS_SHOW_PAUSED_NOTIFICATION">settingPausedNotification</string>
+    <string name="SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION">settingLockscreenNotification</string>
+    <string name="SETTINGS_REFETCH_INTERVAL">settingRefetchInterval</string>
 
     <!-- Example General settings -->
-    <string name="pref_header_general">General</string>
+    <string name="pref_about">Über diese App</string>
 
-    <string name="pref_title_social_recommendations">Enable social recommendations</string>
-    <string name="pref_description_social_recommendations">Recommendations for people to contact
-        based on your message history
-    </string>
+    <string name="pref_title_refetch_interval">Aktualisierung der Liste</string>
+    <string name="pref_description_refetch_interval">Wie oft soll die Liste der Online Beiträge aktualisiert werden (Minuten)</string>
 
-    <string name="pref_title_display_name">Display name</string>
-    <string name="pref_default_display_name">John Smith</string>
+    <string name="pref_title_download_folder">Download - Ordner</string>
+    <string name="pref_description_download_folder">Wohin sollen die Offline Beiträge gespeichert werden?</string>
 
-    <string name="pref_title_add_friends_to_messages">Add friends to messages</string>
-    <string-array name="pref_example_list_titles">
-        <item>Always</item>
-        <item>When possible</item>
-        <item>Never</item>
-    </string-array>
-    <string-array name="pref_example_list_values">
-        <item>1</item>
-        <item>0</item>
-        <item>-1</item>
-    </string-array>
+    <string name="pref_title_play_notification">Benachrichtigung - Abspielen</string>
+    <string name="pref_description_play_notification">Soll eine Benachrichtigung beim Abspielen angezeigt werden?</string>
 
-    <!-- Example settings for Data & Sync -->
-    <string name="pref_header_data_sync">Data &amp; sync</string>
+    <string name="pref_title_pause_notification">Benachrichtigung - Pause</string>
+    <string name="pref_description_pause_notification">Soll eine Benachrichtigung angezeigt werden wenn der Beitrag pausiert ist?</string>
 
-    <string name="pref_title_sync_frequency">Sync frequency</string>
-    <string-array name="pref_sync_frequency_titles">
-        <item>15 minutes</item>
-        <item>30 minutes</item>
-        <item>1 hour</item>
-        <item>3 hours</item>
-        <item>6 hours</item>
-        <item>Never</item>
-    </string-array>
-    <string-array name="pref_sync_frequency_values">
-        <item>15</item>
-        <item>30</item>
-        <item>60</item>
-        <item>180</item>
-        <item>360</item>
-        <item>-1</item>
-    </string-array>
+    <string name="pref_title_lockscreen_notification">Benachrichtigung - Sperrbildschirm</string>
+    <string name="pref_description_lockscreen_notification">Soll eine Benachrichtigung am Sperrbildschirm angezeigt werden? TBD; noch nicht implementiert</string>
 
-    <string name="pref_title_system_sync_settings">System sync settings</string>
-
-    <!-- Example settings for Notifications -->
-    <string name="pref_header_notifications">Notifications</string>
-
-    <string name="pref_title_new_message_notifications">New message notifications</string>
-
-    <string name="pref_title_ringtone">Ringtone</string>
-    <string name="pref_ringtone_silent">Silent</string>
-
-    <string name="pref_title_vibrate">Vibrate</string>
-
+    <!-- about dialog -->
+    <string name="about_title">Über diese App</string>
+    <string name="about_message">Diese App wurde als Ersatz für die orginale Ö1 App des ORFs erstellt.\n
+    BETA Version! \n\n
+    Weitere Information sind auf GitHUB verfügbar:\n
+    https://github.com/benjaminaigner/AustrianPublicStream\n\n
+    Hinter dieser App stehen keine kommerziellen Interessen usw., sie wurde alleine aus Unzufriedenheit mit dem ORF entwickelt.
+    Keine meiner Bugreports wurden jemals umgesetzt, also dachte ich mir ich mache einfach eine eigene App. \n\n
+    Lizenz: GNU GPLv3\n\n
+    Ein großes Dankeschön an alle Experten bei stackoverflow, ohne deren Tipps wäre es niemals soweit gekommen!</string>
 </resources>

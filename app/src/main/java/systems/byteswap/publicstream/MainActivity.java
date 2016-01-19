@@ -1,3 +1,23 @@
+/**
+        Copyright:
+        2015/2016 Benjamin Aigner
+
+        This file is part of AustrianPublicStream.
+
+        AustrianPublicStream is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        AustrianPublicStream is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with AustrianPublicStream.  If not, see <http://www.gnu.org/licenses/>.
+**/
+
 package systems.byteswap.publicstream;
 
 import android.app.AlertDialog;
@@ -11,10 +31,13 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.media.AudioManager;
+import android.media.RemoteControlClient;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
@@ -44,31 +67,19 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
-//TODO:; BUG:
+//TODO:; BUGs:
 //Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
 //Wenn ein Beitrag geladen wurde (offline) verschwinden teilweise die Download Symbole...
+//Wenn kein Downloadordner im "preferences" angegeben ist -> Fehler: EROFS (readonly FS)
+//Manchmal bleibt die "play" noti hängen...
 
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
 public class MainActivity extends AppCompatActivity {
-    /** number of seconds between each list fetching action (getting all JSON files of programs, takes about 2-5s) **/
-    public static int REFETCH_LIST_INTERVAL_SECONDS = 300; //each 5min
-
     /** ID for the download notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_DOWNLOAD_ID = 1;
     /** ID for the play notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_PLAY_ID = 2;
-
-    /** shared preferences storage name */
-    public static final String PREFERENCES = "PreferencesFile";
-    /** key for the shared preferences: download folder */
-    public static String SETTINGS_DOWNLOADFOLDER = "settingDownloadFolder";
-    /** key for the shared preferences: show a notification while playing */
-    public static String SETTINGS_SHOW_PLAY_NOTIFICATION = "settingPlayNotification";
-    /** key for the shared preferences: show a notification if paused */
-    public static String SETTINGS_SHOW_PAUSED_NOTIFICATION = "settingPausedNotification";
-    /** key for the shared preferences: show a playback notifications on the lock screen*/
-    public static String SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION = "settingLockscreenNotification";
 
     ProgramExpandableAdapter adapter;
     ExpandableListView expandableList;
@@ -116,6 +127,9 @@ public class MainActivity extends AppCompatActivity {
 
     /** flag (from the settings) to show if a notification is issued if paused */
     boolean showPlayNotification = true;
+
+    /** flag (from the settings) to show if a notification is issued on the lockscreen */
+    boolean showLockscreenNotification = true;
 
     /** boolean flag for updating the list: if true, some element of the list was changed -> renew the adapter */
     public boolean hasChanged = false;
@@ -187,6 +201,30 @@ public class MainActivity extends AppCompatActivity {
             mService = dataFragment.getMediaService();
             mConnection = dataFragment.getMediaConnection();
             mMediaServiceIntent = dataFragment.getMediaServiceIntent();
+
+            //if something went wrong, restart the connection...
+            if(mMediaServiceIntent == null || mConnection == null || mService == null) {
+                Log.w("Restore activity","Something went wrong with the service connection, restarting: ");
+                Log.w("Restore activity", "mMediaServiceIntent:" + mMediaServiceIntent);
+                Log.w("Restore activity", "mConnection:" + mConnection);
+                Log.w("Restore activity", "mService:" + mService);
+                mMediaServiceIntent = new Intent(this, MediaService.class);
+                startService(mMediaServiceIntent);
+
+                mConnection = new ServiceConnection() {
+                    public void onServiceConnected(ComponentName className, IBinder service) {
+                        mService = ((LocalBinder<MediaService>) service).getService();
+                        dataFragment.setMediaService(mService);
+                    }
+
+                    public void onServiceDisconnected(ComponentName className) {
+                        // As our service is in the same process, this should never be called
+                    }
+                };
+                dataFragment.setMediaConnection(mConnection);
+                dataFragment.setMediaServiceIntent(mMediaServiceIntent);
+            }
+
             bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
             adapter = new ProgramExpandableAdapter();
             adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
@@ -202,11 +240,6 @@ public class MainActivity extends AppCompatActivity {
             TextView textViewCurrentStream = (TextView)findViewById(R.id.textViewCurrentStream);
             if(dataFragment.getTextPlayButton() != null) textViewCurrentStream.setText(dataFragment.getTextPlayButton());
         }
-
-        //load settings from preferences
-        SharedPreferences settings = getSharedPreferences(PREFERENCES, 0);
-        showPausedNotification = settings.getBoolean(SETTINGS_SHOW_PAUSED_NOTIFICATION,true);
-        showPlayNotification = settings.getBoolean(SETTINGS_SHOW_PLAY_NOTIFICATION,true);
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -334,9 +367,8 @@ public class MainActivity extends AppCompatActivity {
                     urlConnection.connect();
 
                     //create the file
-                    SharedPreferences settings = getSharedPreferences(PREFERENCES, 0);
-                    File folder = new File(settings.getString(SETTINGS_DOWNLOADFOLDER,Environment.getExternalStorageDirectory().toString() + "/Ö1-Beiträge"));
-                    //String fileName = datum + "-" + child.time + "-" + child.shortTitle + ".mp3";
+                    SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+                    File folder = new File(settings.getString(getString(R.string.SETTINGS_DOWNLOADFOLDER),Environment.getExternalStorageDirectory().toString() + "/Ö1-Beiträge"));
                     fileName = datum + "-" + child.time.replace(':','.') + "-" + child.shortTitle + ".mp3";
                     folder.mkdirs();
 
@@ -367,10 +399,6 @@ public class MainActivity extends AppCompatActivity {
                             .setContentTitle("Download")
                             .setContentText(child.title + "0%")
                             .setSmallIcon(R.drawable.notification_download);
-
-
-
-
 
                     //now, read through the input buffer and write the contents to the file
                     while ((bufferLength = inputStream.read(buffer)) > 0) {
@@ -432,7 +460,14 @@ public class MainActivity extends AppCompatActivity {
         //Schedule the regular (local) list update via the ProgramExpandableAdapter
         handler.post(mRunnableList);
 
-        //schedule the regular update of the remote list
+
+        //load settings from preferences (interval of the refetch and notification settings)
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
+        int interval = Integer.valueOf(settings.getString(getString(R.string.SETTINGS_REFETCH_INTERVAL), "5"));
+        showPausedNotification = settings.getBoolean(getString(R.string.SETTINGS_SHOW_PAUSED_NOTIFICATION),true);
+        showPlayNotification = settings.getBoolean(getString(R.string.SETTINGS_SHOW_PLAY_NOTIFICATION),true);
+        showLockscreenNotification = settings.getBoolean(getString(R.string.SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION),true);
+
         //schedule the regular update of the remote list
         programDataTimer = new Timer();
         programDataTimer.schedule(new TimerTask() {
@@ -440,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 TimerMethodRemoteList();
             }
-        }, 0, REFETCH_LIST_INTERVAL_SECONDS * 1000);
+        }, 0, interval * 60 * 1000);
 
 
         //Create the regular update timer for the notifications and the progress bar in the GUI
@@ -458,7 +493,7 @@ public class MainActivity extends AppCompatActivity {
         ArrayList<ORFParser.ORFProgram> temp;
 
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListToday)) {
+        if(temp != null && !temp.equals(programListToday)) {
             programListToday = temp;
             dataFragment.setProgramListToday(temp);
             hasChangedTemp = true;
@@ -466,7 +501,7 @@ public class MainActivity extends AppCompatActivity {
 
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListTodayMinus1)) {
+        if(temp != null && !temp.equals(programListTodayMinus1)) {
             programListTodayMinus1 = temp;
             dataFragment.setProgramListTodayMinus1(temp);
             hasChangedTemp = true;
@@ -474,42 +509,42 @@ public class MainActivity extends AppCompatActivity {
 
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListTodayMinus2)) {
+        if(temp != null && !temp.equals(programListTodayMinus2)) {
             programListTodayMinus2 = temp;
             dataFragment.setProgramListTodayMinus2(temp);
             hasChangedTemp = true;
         }
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListTodayMinus3)) {
+        if(temp != null && !temp.equals(programListTodayMinus3)) {
             programListTodayMinus3 = temp;
             dataFragment.setProgramListTodayMinus3(temp);
             hasChangedTemp = true;
         }
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListTodayMinus4)) {
+        if(temp != null && !temp.equals(programListTodayMinus4)) {
             programListTodayMinus4 = temp;
             dataFragment.setProgramListTodayMinus4(temp);
             hasChangedTemp = true;
         }
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListTodayMinus5)) {
+        if(temp != null && !temp.equals(programListTodayMinus5)) {
             programListTodayMinus5 = temp;
             dataFragment.setProgramListTodayMinus5(temp);
             hasChangedTemp = true;
         }
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if (!temp.equals(programListTodayMinus6)) {
+        if (temp != null && !temp.equals(programListTodayMinus6)) {
             programListTodayMinus6 = temp;
             dataFragment.setProgramListTodayMinus6(temp);
             hasChangedTemp = true;
         }
         today.add(Calendar.DAY_OF_MONTH,-1);
         temp = parser.getProgramsForDay(today.getTime());
-        if(!temp.equals(programListTodayMinus7)) {
+        if(temp != null && !temp.equals(programListTodayMinus7)) {
             programListTodayMinus7 = temp;
             dataFragment.setProgramListTodayMinus7(temp);
             hasChangedTemp = true;
@@ -599,9 +634,9 @@ public class MainActivity extends AppCompatActivity {
                     handler.removeCallbacks(mRunnableSeek);
                     break;
                 case -2:
+                    mService.stopForeground(true);
                     //if paused && not notified already (done only once)
-                    if(!isPausedNotified) {
-                        mService.stopForeground(true);
+                    if(!isPausedNotified && showPausedNotification) {
                         isPausedNotified = true;
                         mNotifyBuilder.setContentText("Pause: " + dateString);
                         mNotification = mNotifyBuilder.build();
@@ -609,17 +644,23 @@ public class MainActivity extends AppCompatActivity {
                                 MainActivity.NOTIFICATION_PLAY_ID, mNotification);
                         Log.i("NOTE", "PAUSED -> new notification");
                     }
+                    if(!showPausedNotification) mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
                     handler.removeCallbacks(mRunnableSeek);
                     Log.i("NOTE","PAUSED -> already notified");
                     break;
                 default:
                     //if the playback is active, display the current time
                     mNotifyBuilder.setContentText("Abspielen: " + dateString);
-                    mNotification = mNotifyBuilder.build();
-                    isPausedNotified = false;
-                    Log.i("NOTE","PLAY -> update...");
-                    mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID,mNotification);
-                    handler.postDelayed(mRunnableSeek,1000);
+                    if(showPlayNotification) {
+                        mNotification = mNotifyBuilder.build();
+                        isPausedNotified = false;
+                        Log.i("NOTE", "PLAY -> update...");
+                        mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID, mNotification);
+                    }
+                    if(showLockscreenNotification) {
+                        drawLockScrenNotification(this);
+                    }
+                    handler.postDelayed(mRunnableSeek, 1000);
                     break;
             }
 
@@ -686,6 +727,43 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    public void drawLockScrenNotification (Context context){
+        /*// Creates an Intent for the Activity
+        Intent notifyIntent = new Intent(this, MainActivity.class);
+        // Sets the Activity to start in a new, empty task
+        notifyIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+            | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        // Creates the PendingIntent
+        PendingIntent pausePendingIntent =
+                PendingIntent.getActivity(this,0,notifyIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                );
+
+
+        Notification notification = new Notification.Builder(context)
+                // Show controls on lock screen even when user hides sensitive content.
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setSmallIcon(R.drawable.notification_play)
+                // Add media control buttons that invoke intents in your media service
+                .addAction(R.drawable.ic_av_pause_circle_outline, "Pause", pausePendingIntent)  // #1
+                // Apply the media style template
+                .setStyle(new Notification.MediaStyle()
+                        .setShowActionsInCompactView(0))
+                .build();
+                                //.setLargeIcon(albumArtBitmap)
+                                //.setMediaSession(mMediaSession.getSessionToken())*/
+        ComponentName myEventReceiver = new ComponentName(getPackageName(), MainActivity.class.getName());
+        AudioManager myAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        myAudioManager.registerMediaButtonEventReceiver(myEventReceiver);
+        // build the PendingIntent for the remote control client
+        Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        mediaButtonIntent.setComponent(myEventReceiver);
+        PendingIntent mediaPendingIntent = PendingIntent.getBroadcast(getApplicationContext(), 0, mediaButtonIntent, 0);
+        // create and register the remote control client
+        RemoteControlClient myRemoteControlClient = new RemoteControlClient(mediaPendingIntent);
+        myAudioManager.registerRemoteControlClient(myRemoteControlClient);
     }
 }
 

@@ -1,6 +1,25 @@
+/**
+ Copyright:
+ 2015/2016 Benjamin Aigner
+
+ This file is part of AustrianPublicStream.
+
+ AustrianPublicStream is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ AustrianPublicStream is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with AustrianPublicStream.  If not, see <http://www.gnu.org/licenses/>.
+ **/
+
 package systems.byteswap.publicstream;
 
-import android.app.Notification;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -19,20 +38,27 @@ import org.videolan.libvlc.MediaPlayer;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
+/**
+ * The media service class provides an interface to the VLC player as a service.
+ *
+ * It can be controlled via onCommand().
+ * The telephone state is also handled here
+ *
+ * Via start/stopForeground the service can be brought to foreground, enabling a jitter free playback
+ *
+ * In some occasions there might be a problem with the wifi/wakelocks. Should be investigated sometime.
+ */
 public class MediaService extends Service implements IVLCVout.Callback, LibVLC.HardwareAccelerationError {
     public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAYPAUSE";
     public final static String ACTION_PLAY = "systems.byteswap.action.PLAY";
     public final static String ACTION_PAUSE = "systems.byteswap.action.PAUSE";
-    //public final static String ACTION_STOP = "systems.byteswap.action.STOP";
+    public final static String ACTION_STOP = "systems.byteswap.action.STOP";
     public final static String ACTION_SETTIME = "systems.byteswap.action.SETTIME";
     public final static String ACTION_LOAD = "systems.byteswap.action.LOAD";
 
     public final static String MEDIA_STATE_IDLE = "systems.byteswap.mediastate.IDLE";
     public final static String MEDIA_STATE_PLAYING = "systems.byteswap.mediastate.PLAYING";
     public final static String MEDIA_STATE_PAUSED = "systems.byteswap.mediastate.PAUSED";
-    //public final static String MEDIA_STATE_PREPARING = "systems.byteswap.mediastate.PREPARING";
-
-    //public final static int MEDIA_BUFFER_MS = 6000;
 
     private MediaPlayer mMediaPlayer = null;
     private LibVLC libvlc;
@@ -70,9 +96,6 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         return new LocalBinder<>(this);
     }
 
-    /*public MediaPlayer getMediaPlayer() {
-        return mMediaPlayer;
-    }*/
 
     public boolean onCommand(String command, String parameter) {
         TelephonyManager mgr;
@@ -129,6 +152,22 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                         mgr = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
                         if(mgr != null) {
                             mgr.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+                        }
+                        break;
+                }
+                break;
+            case ACTION_STOP:
+                switch(mState) {
+                    case MEDIA_STATE_PAUSED:
+                    case MEDIA_STATE_PLAYING:
+                        mMediaPlayer.stop();
+                        mState = MEDIA_STATE_IDLE;
+                        wifiLock.release();
+                        wakeLock.release();
+
+                        mgr = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+                        if(mgr != null) {
+                            mgr.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
                         }
                         break;
                 }
@@ -208,13 +247,14 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         }
     }
 
-    public void startForegroundMedia(int notificationId, Notification notification) {
+    //these methods are not used, it works with the internal service methods start-/stopForeground()
+    /*public void startForegroundMedia(int notificationId, Notification notification) {
         this.startForeground(notificationId,notification);
     }
 
     public void stopForegroundMedia() {
         this.stopForeground(false);
-    }
+    }*/
 
     @Override
     public void onNewLayout(IVLCVout ivlcVout, int i, int i1, int i2, int i3, int i4, int i5) {
