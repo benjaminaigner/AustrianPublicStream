@@ -70,7 +70,6 @@ import java.util.TimerTask;
 //TODO:; BUGs:
 //Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
 //Wenn ein Beitrag geladen wurde (offline) verschwinden teilweise die Download Symbole...
-//Wenn kein Downloadordner im "preferences" angegeben ist -> Fehler: EROFS (readonly FS)
 //Manchmal bleibt die "play" noti hängen...
 
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
@@ -368,7 +367,10 @@ public class MainActivity extends AppCompatActivity {
 
                     //create the file
                     SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-                    File folder = new File(settings.getString(getString(R.string.SETTINGS_DOWNLOADFOLDER),Environment.getExternalStorageDirectory().toString() + "/Ö1-Beiträge"));
+                    String settingsPath = settings.getString(getString(R.string.SETTINGS_DOWNLOADFOLDER),Environment.getExternalStorageDirectory().toString());
+                    if(settingsPath.equals("")) settingsPath = Environment.getExternalStorageDirectory().toString();
+
+                    File folder = new File(settingsPath + "/Ö1-Beiträge");
                     fileName = datum + "-" + child.time.replace(':','.') + "-" + child.shortTitle + ".mp3";
                     folder.mkdirs();
 
