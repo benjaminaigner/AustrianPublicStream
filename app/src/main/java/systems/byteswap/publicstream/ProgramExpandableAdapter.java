@@ -86,6 +86,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
                     activity.programDownloadClickListener(child.get(childPosition), df.format("dd.MM.yyyy", today).toString());
                 }
             });
+            imageViewDownload.setVisibility(View.VISIBLE);
         }
         textView = (TextView) convertView.findViewById(R.id.textViewChildInfo);
         textView.setText(child.get(childPosition).info);

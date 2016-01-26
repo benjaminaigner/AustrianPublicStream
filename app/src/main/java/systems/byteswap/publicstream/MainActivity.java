@@ -69,7 +69,6 @@ import java.util.TimerTask;
 //TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
 //TODO:; BUGs:
 //Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
-//Wenn ein Beitrag geladen wurde (offline) verschwinden teilweise die Download Symbole...
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
 public class MainActivity extends AppCompatActivity {
