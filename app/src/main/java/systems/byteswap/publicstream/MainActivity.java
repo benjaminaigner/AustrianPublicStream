@@ -70,8 +70,6 @@ import java.util.TimerTask;
 //TODO:; BUGs:
 //Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
 //Wenn ein Beitrag geladen wurde (offline) verschwinden teilweise die Download Symbole...
-//Manchmal bleibt die "play" noti hängen...
-
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
 public class MainActivity extends AppCompatActivity {
@@ -630,6 +628,7 @@ public class MainActivity extends AppCompatActivity {
             switch(timeStamp) {
                 case -1:
                     //cancel() if the playback is stopped
+                    mService.stopForeground(true);
                     mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
                     isPausedNotified = false;
                     Log.i("NOTE","STOPPED -> cancel");
