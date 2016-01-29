@@ -186,7 +186,9 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                 break;
             case ACTION_SETTIME:
                 //float position = Float.valueOf(parameter);
-                mMediaPlayer.setPosition(Float.valueOf(parameter));
+                if(mMediaPlayer != null) {
+                    mMediaPlayer.setPosition(Float.valueOf(parameter));
+                }
                 break;
             default:
                 return false;
