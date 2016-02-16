@@ -66,7 +66,7 @@ import java.util.GregorianCalendar;
 import java.util.Timer;
 import java.util.TimerTask;
 
-//TODO: wie is das mitn telefonieren? GET_NOISY_INTENT...
+
 //TODO:; BUGs:
 //Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
@@ -483,83 +483,177 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void TimerMethodRemoteList() {
-        boolean hasChangedTemp = false;
-        //Create calendar object (today)
-        Calendar today = new GregorianCalendar();
-        //create parser object
-        ORFParser parser = new ORFParser();
 
+        //fetch all offline programs first
         ArrayList<ORFParser.ORFProgram> temp;
-
-        temp = parser.getProgramsForDay(today.getTime());
-        if(temp != null && !temp.equals(programListToday)) {
-            programListToday = temp;
-            dataFragment.setProgramListToday(temp);
-            hasChangedTemp = true;
-        }
-
-        today.add(Calendar.DAY_OF_MONTH,-1);
-        temp = parser.getProgramsForDay(today.getTime());
-        if(temp != null && !temp.equals(programListTodayMinus1)) {
-            programListTodayMinus1 = temp;
-            dataFragment.setProgramListTodayMinus1(temp);
-            hasChangedTemp = true;
-        }
-
-        today.add(Calendar.DAY_OF_MONTH,-1);
-        temp = parser.getProgramsForDay(today.getTime());
-        if(temp != null && !temp.equals(programListTodayMinus2)) {
-            programListTodayMinus2 = temp;
-            dataFragment.setProgramListTodayMinus2(temp);
-            hasChangedTemp = true;
-        }
-        today.add(Calendar.DAY_OF_MONTH,-1);
-        temp = parser.getProgramsForDay(today.getTime());
-        if(temp != null && !temp.equals(programListTodayMinus3)) {
-            programListTodayMinus3 = temp;
-            dataFragment.setProgramListTodayMinus3(temp);
-            hasChangedTemp = true;
-        }
-        today.add(Calendar.DAY_OF_MONTH,-1);
-        temp = parser.getProgramsForDay(today.getTime());
-        if(temp != null && !temp.equals(programListTodayMinus4)) {
-            programListTodayMinus4 = temp;
-            dataFragment.setProgramListTodayMinus4(temp);
-            hasChangedTemp = true;
-        }
-        today.add(Calendar.DAY_OF_MONTH,-1);
-        temp = parser.getProgramsForDay(today.getTime());
-        if(temp != null && !temp.equals(programListTodayMinus5)) {
-            programListTodayMinus5 = temp;
-            dataFragment.setProgramListTodayMinus5(temp);
-            hasChangedTemp = true;
-        }
-        today.add(Calendar.DAY_OF_MONTH,-1);
-        temp = parser.getProgramsForDay(today.getTime());
-        if (temp != null && !temp.equals(programListTodayMinus6)) {
-            programListTodayMinus6 = temp;
-            dataFragment.setProgramListTodayMinus6(temp);
-            hasChangedTemp = true;
-        }
-        today.add(Calendar.DAY_OF_MONTH,-1);
-        temp = parser.getProgramsForDay(today.getTime());
-        if(temp != null && !temp.equals(programListTodayMinus7)) {
-            programListTodayMinus7 = temp;
-            dataFragment.setProgramListTodayMinus7(temp);
-            hasChangedTemp = true;
-        }
-
+        ORFParser parser = new ORFParser();
         temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
         if(temp != null) {
             if (!temp.equals(programListOffline)) {
                 programListOffline = temp;
                 dataFragment.setProgramListOffline(temp);
-                hasChangedTemp = true;
+                hasChanged = true;
             }
         }
 
-        //if one list object is changed -> set global change flag
-        hasChanged = hasChangedTemp;
+        //post all fetch actions (for each day since today-1week)
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+                temp = parser.getProgramsForDay(today.getTime());
+                if(temp != null && !temp.equals(programListToday)) {
+                    programListToday = temp;
+                    dataFragment.setProgramListToday(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+
+                today.add(Calendar.DAY_OF_MONTH,-1);
+                temp = parser.getProgramsForDay(today.getTime());
+                if(temp != null && !temp.equals(programListTodayMinus1)) {
+                    programListTodayMinus1 = temp;
+                    dataFragment.setProgramListTodayMinus1(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+
+                today.add(Calendar.DAY_OF_MONTH,-2);
+                temp = parser.getProgramsForDay(today.getTime());
+                if(temp != null && !temp.equals(programListTodayMinus2)) {
+                    programListTodayMinus2 = temp;
+                    dataFragment.setProgramListTodayMinus2(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+
+                today.add(Calendar.DAY_OF_MONTH,-3);
+                temp = parser.getProgramsForDay(today.getTime());
+                if(temp != null && !temp.equals(programListTodayMinus3)) {
+                    programListTodayMinus3 = temp;
+                    dataFragment.setProgramListTodayMinus3(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+
+                today.add(Calendar.DAY_OF_MONTH,-4);
+                temp = parser.getProgramsForDay(today.getTime());
+                if(temp != null && !temp.equals(programListTodayMinus4)) {
+                    programListTodayMinus4 = temp;
+                    dataFragment.setProgramListTodayMinus4(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+
+                today.add(Calendar.DAY_OF_MONTH,-5);
+                temp = parser.getProgramsForDay(today.getTime());
+                if(temp != null && !temp.equals(programListTodayMinus5)) {
+                    programListTodayMinus5 = temp;
+                    dataFragment.setProgramListTodayMinus5(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+
+                today.add(Calendar.DAY_OF_MONTH, -6);
+                temp = parser.getProgramsForDay(today.getTime());
+                if (temp != null && !temp.equals(programListTodayMinus6)) {
+                    programListTodayMinus6 = temp;
+                    dataFragment.setProgramListTodayMinus6(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Create calendar object (today)
+                Calendar today = new GregorianCalendar();
+                //create parser object
+                ORFParser parser = new ORFParser();
+
+                ArrayList<ORFParser.ORFProgram> temp;
+
+                today.add(Calendar.DAY_OF_MONTH,-7);
+                temp = parser.getProgramsForDay(today.getTime());
+                if(temp != null && !temp.equals(programListTodayMinus7)) {
+                    programListTodayMinus7 = temp;
+                    dataFragment.setProgramListTodayMinus7(temp);
+                    hasChanged = true;
+                }
+            }
+        }).start();
     }
 
     private void TimerMethodSeek() {

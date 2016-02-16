@@ -36,6 +36,47 @@
             android:layout_height="wrap_content"
             android:layout_weight = "1"/>
 
+        <!-- <ExpandableListView
+            android:id="@+id/expandableProgramListMinus1"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+        <ExpandableListView
+            android:id="@+id/expandableProgramListMinus2"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+        <ExpandableListView
+            android:id="@+id/expandableProgramListMinus3"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+        <ExpandableListView
+            android:id="@+id/expandableProgramListMinus4"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+        <ExpandableListView
+            android:id="@+id/expandableProgramListMinus5"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+        <ExpandableListView
+            android:id="@+id/expandableProgramListMinus6"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+        <ExpandableListView
+            android:id="@+id/expandableProgramListMinus7"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/>
+        <ExpandableListView
+            android:id="@+id/expandableProgramListOffline"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight = "1"/> -->
+
         <TextView
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
