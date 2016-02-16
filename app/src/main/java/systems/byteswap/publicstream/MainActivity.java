@@ -67,7 +67,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 
-//TODO:; BUGs:
 //Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
@@ -77,8 +76,25 @@ public class MainActivity extends AppCompatActivity {
     /** ID for the play notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_PLAY_ID = 2;
 
+    //create one adapter
     ProgramExpandableAdapter adapter;
+    ProgramExpandableAdapter adapter1;
+    ProgramExpandableAdapter adapter2;
+    ProgramExpandableAdapter adapter3;
+    ProgramExpandableAdapter adapter4;
+    ProgramExpandableAdapter adapter5;
+    ProgramExpandableAdapter adapter6;
+    ProgramExpandableAdapter adapter7;
+    ProgramExpandableAdapter adapterOffline;
     ExpandableListView expandableList;
+    ExpandableListView expandableList1;
+    ExpandableListView expandableList2;
+    ExpandableListView expandableList3;
+    ExpandableListView expandableList4;
+    ExpandableListView expandableList5;
+    ExpandableListView expandableList6;
+    ExpandableListView expandableList7;
+    ExpandableListView expandableListOffline;
 
     //Handler to process all postDelayed operations (timer replacement for Android)
     private Handler handler = new Handler();
@@ -98,11 +114,11 @@ public class MainActivity extends AppCompatActivity {
     };
 
     //Runnable instance for the local list (will be posted to the handler)
-    Runnable mRunnableList = new Runnable() {
+    /*Runnable mRunnableList = new Runnable() {
         public void run() {
             TimerMethodList();
         }
-    };
+    };*/
 
 
     private MainFragment dataFragment;
@@ -128,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
     boolean showLockscreenNotification = true;
 
     /** boolean flag for updating the list: if true, some element of the list was changed -> renew the adapter */
-    public boolean hasChanged = false;
+    //public boolean hasChanged = false;
 
     private ServiceConnection mConnection;
 
@@ -166,22 +182,6 @@ public class MainActivity extends AppCompatActivity {
             startService(mMediaServiceIntent);
             bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
             dataFragment.setMediaServiceIntent(mMediaServiceIntent);
-
-            //create expandable list view / set properties
-            expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
-            expandableList.setDividerHeight(2);
-            expandableList.setGroupIndicator(null);
-            expandableList.setClickable(true);
-            dataFragment.setExpandableList(expandableList);
-
-            // Create the Adapter
-            adapter = new ProgramExpandableAdapter();
-            adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-            dataFragment.setAdapter(adapter);
-
-            // Set the Adapter to expandableList
-            expandableList.setAdapter(adapter);
-
             fm.beginTransaction().add(dataFragment, "data").commit();
         } else {
             //Restore everything necessary from the dataFragment (if available)
@@ -222,20 +222,62 @@ public class MainActivity extends AppCompatActivity {
             }
 
             bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
-            adapter = new ProgramExpandableAdapter();
-            adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-
-            //create expandable list view / set properties
-            expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
-            expandableList.setDividerHeight(2);
-            expandableList.setGroupIndicator(null);
-            expandableList.setClickable(true);
-            // Set the Adapter to expandableList
-            expandableList.setAdapter(adapter);
-
             TextView textViewCurrentStream = (TextView)findViewById(R.id.textViewCurrentStream);
             if(dataFragment.getTextPlayButton() != null) textViewCurrentStream.setText(dataFragment.getTextPlayButton());
         }
+
+        // Create the Adapter
+        adapter = new ProgramExpandableAdapter(false,true,"");
+        adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapter1 = new ProgramExpandableAdapter(false,false,"");
+        adapter1.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapter2 = new ProgramExpandableAdapter(false,false,"");
+        adapter2.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapter3 = new ProgramExpandableAdapter(false,false,"");
+        adapter3.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapter4 = new ProgramExpandableAdapter(false,false,"");
+        adapter4.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapter5 = new ProgramExpandableAdapter(false,false,"");
+        adapter5.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapter6 = new ProgramExpandableAdapter(false,false,"");
+        adapter6.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapter7 = new ProgramExpandableAdapter(false,false,"");
+        adapter7.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        adapterOffline = new ProgramExpandableAdapter(true,false,"");
+        adapterOffline.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+
+
+        //create expandable list view / set properties
+        expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
+        expandableList.setClickable(true);
+        expandableList1 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus1));
+        expandableList1.setClickable(true);
+        expandableList2 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus2));
+        expandableList2.setClickable(true);
+        expandableList3 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus3));
+        expandableList3.setClickable(true);
+        expandableList4 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus4));
+        expandableList4.setClickable(true);
+        expandableList5 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus5));
+        expandableList5.setClickable(true);
+        expandableList6 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus6));
+        expandableList6.setClickable(true);
+        expandableList7 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus7));
+        expandableList7.setClickable(true);
+        expandableListOffline = (ExpandableListView)(findViewById(R.id.expandableProgramListOffline));
+        expandableListOffline.setClickable(true);
+
+        // Set the Adapter to expandableList
+        expandableList.setAdapter(adapter);
+        expandableList1.setAdapter(adapter1);
+        expandableList2.setAdapter(adapter2);
+        expandableList3.setAdapter(adapter3);
+        expandableList4.setAdapter(adapter4);
+        expandableList5.setAdapter(adapter5);
+        expandableList6.setAdapter(adapter6);
+        expandableList7.setAdapter(adapter7);
+        expandableListOffline.setAdapter(adapterOffline);
+
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -320,13 +362,10 @@ public class MainActivity extends AppCompatActivity {
                         programListOffline = temp;
                         dataFragment.setProgramListOffline(temp);
                     }
+
                     if(expandableList != null && adapter != null) {
-                        adapter.update(programListToday, programListTodayMinus1,
-                                programListTodayMinus2, programListTodayMinus3,
-                                programListTodayMinus4, programListTodayMinus5,
-                                programListTodayMinus6, programListTodayMinus7,
-                                programListOffline);
-                        expandableList.setAdapter(adapter);
+                        adapterOffline.update(programListOffline);
+                        expandableListOffline.setAdapter(adapterOffline);
                     }
                 }
             });
@@ -430,8 +469,11 @@ public class MainActivity extends AppCompatActivity {
                         child.url = folder + "/" + fileName;
                         parser.addProgramOffline(child,getBaseContext().getExternalCacheDir());
                         programListOffline = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
-                        hasChanged = true;
 
+                        if(expandableList != null && adapter != null) {
+                            adapterOffline.update(programListOffline);
+                            expandableListOffline.setAdapter(adapterOffline);
+                        }
                     } else {
                         runOnUiThread(new Runnable() {
                             public void run() {
@@ -457,7 +499,7 @@ public class MainActivity extends AppCompatActivity {
         //on resume: no delay for the first execution...
 
         //Schedule the regular (local) list update via the ProgramExpandableAdapter
-        handler.post(mRunnableList);
+        //handler.post(mRunnableList);
 
 
         //load settings from preferences (interval of the refetch and notification settings)
@@ -483,7 +525,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void TimerMethodRemoteList() {
-
         //fetch all offline programs first
         ArrayList<ORFParser.ORFProgram> temp;
         ORFParser parser = new ORFParser();
@@ -492,7 +533,11 @@ public class MainActivity extends AppCompatActivity {
             if (!temp.equals(programListOffline)) {
                 programListOffline = temp;
                 dataFragment.setProgramListOffline(temp);
-                hasChanged = true;
+
+                if(expandableList != null && adapter != null) {
+                    adapterOffline.update(programListOffline);
+                    expandableListOffline.setAdapter(adapterOffline);
+                }
             }
         }
 
@@ -510,7 +555,15 @@ public class MainActivity extends AppCompatActivity {
                 if(temp != null && !temp.equals(programListToday)) {
                     programListToday = temp;
                     dataFragment.setProgramListToday(temp);
-                    hasChanged = true;
+                    if(expandableList != null && adapter != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                adapter.update(programListToday);
+                                expandableList.setAdapter(adapter);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -530,7 +583,19 @@ public class MainActivity extends AppCompatActivity {
                 if(temp != null && !temp.equals(programListTodayMinus1)) {
                     programListTodayMinus1 = temp;
                     dataFragment.setProgramListTodayMinus1(temp);
-                    hasChanged = true;
+                    if(expandableList1 != null && adapter1 != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                android.text.format.DateFormat df = new android.text.format.DateFormat();
+                                Calendar day = new GregorianCalendar();
+                                day.add(Calendar.DAY_OF_MONTH,-1);
+                                adapter1.setDayLabel(df.format("dd.MM.yyyy", day).toString());
+                                adapter1.update(programListTodayMinus1);
+                                expandableList1.setAdapter(adapter1);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -550,7 +615,19 @@ public class MainActivity extends AppCompatActivity {
                 if(temp != null && !temp.equals(programListTodayMinus2)) {
                     programListTodayMinus2 = temp;
                     dataFragment.setProgramListTodayMinus2(temp);
-                    hasChanged = true;
+                    if(expandableList2 != null && adapter2 != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                android.text.format.DateFormat df = new android.text.format.DateFormat();
+                                Calendar day = new GregorianCalendar();
+                                day.add(Calendar.DAY_OF_MONTH,-2);
+                                adapter2.setDayLabel(df.format("dd.MM.yyyy", day).toString());
+                                adapter2.update(programListTodayMinus2);
+                                expandableList2.setAdapter(adapter2);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -570,7 +647,19 @@ public class MainActivity extends AppCompatActivity {
                 if(temp != null && !temp.equals(programListTodayMinus3)) {
                     programListTodayMinus3 = temp;
                     dataFragment.setProgramListTodayMinus3(temp);
-                    hasChanged = true;
+                    if(expandableList3 != null && adapter3 != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                android.text.format.DateFormat df = new android.text.format.DateFormat();
+                                Calendar day = new GregorianCalendar();
+                                day.add(Calendar.DAY_OF_MONTH,-3);
+                                adapter3.setDayLabel(df.format("dd.MM.yyyy", day).toString());
+                                adapter3.update(programListTodayMinus3);
+                                expandableList3.setAdapter(adapter3);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -590,7 +679,19 @@ public class MainActivity extends AppCompatActivity {
                 if(temp != null && !temp.equals(programListTodayMinus4)) {
                     programListTodayMinus4 = temp;
                     dataFragment.setProgramListTodayMinus4(temp);
-                    hasChanged = true;
+                    if(expandableList4 != null && adapter4 != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                android.text.format.DateFormat df = new android.text.format.DateFormat();
+                                Calendar day = new GregorianCalendar();
+                                day.add(Calendar.DAY_OF_MONTH,-4);
+                                adapter4.setDayLabel(df.format("dd.MM.yyyy", day).toString());
+                                adapter4.update(programListTodayMinus4);
+                                expandableList4.setAdapter(adapter4);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -610,7 +711,19 @@ public class MainActivity extends AppCompatActivity {
                 if(temp != null && !temp.equals(programListTodayMinus5)) {
                     programListTodayMinus5 = temp;
                     dataFragment.setProgramListTodayMinus5(temp);
-                    hasChanged = true;
+                    if(expandableList5 != null && adapter5 != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                android.text.format.DateFormat df = new android.text.format.DateFormat();
+                                Calendar day = new GregorianCalendar();
+                                day.add(Calendar.DAY_OF_MONTH,-5);
+                                adapter5.setDayLabel(df.format("dd.MM.yyyy", day).toString());
+                                adapter5.update(programListTodayMinus5);
+                                expandableList5.setAdapter(adapter5);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -630,7 +743,19 @@ public class MainActivity extends AppCompatActivity {
                 if (temp != null && !temp.equals(programListTodayMinus6)) {
                     programListTodayMinus6 = temp;
                     dataFragment.setProgramListTodayMinus6(temp);
-                    hasChanged = true;
+                    if(expandableList6 != null && adapter6 != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                android.text.format.DateFormat df = new android.text.format.DateFormat();
+                                Calendar day = new GregorianCalendar();
+                                day.add(Calendar.DAY_OF_MONTH,-6);
+                                adapter6.setDayLabel(df.format("dd.MM.yyyy", day).toString());
+                                adapter6.update(programListTodayMinus6);
+                                expandableList6.setAdapter(adapter6);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -650,7 +775,19 @@ public class MainActivity extends AppCompatActivity {
                 if(temp != null && !temp.equals(programListTodayMinus7)) {
                     programListTodayMinus7 = temp;
                     dataFragment.setProgramListTodayMinus7(temp);
-                    hasChanged = true;
+                    if(expandableList7 != null && adapter7 != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                android.text.format.DateFormat df = new android.text.format.DateFormat();
+                                Calendar day = new GregorianCalendar();
+                                day.add(Calendar.DAY_OF_MONTH,-7);
+                                adapter7.setDayLabel(df.format("dd.MM.yyyy", day).toString());
+                                adapter7.update(programListTodayMinus7);
+                                expandableList7.setAdapter(adapter7);
+                            }
+                        });
+                    }
                 }
             }
         }).start();
@@ -766,7 +903,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /** update the list view, the data is fetched in the other timer method */
-    private void TimerMethodList() {
+    /*private void TimerMethodList() {
         adapter.update(programListToday, programListTodayMinus1,
                 programListTodayMinus2, programListTodayMinus3,
                 programListTodayMinus4, programListTodayMinus5,
@@ -778,14 +915,14 @@ public class MainActivity extends AppCompatActivity {
         }
         //re-schedule this runnable...
         handler.postDelayed(mRunnableList,2000);
-    }
+    }*/
 
     @Override
     public void onPause() {
         super.onPause();
         //Stop the regular list update
         programDataTimer.cancel();
-        handler.removeCallbacks(mRunnableList);
+        //handler.removeCallbacks(mRunnableList);
     }
 
     @Override

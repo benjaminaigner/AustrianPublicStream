@@ -38,10 +38,21 @@ import java.util.GregorianCalendar;
 public class ProgramExpandableAdapter extends BaseExpandableListAdapter
 {
 
+    private String dayLabel;
+    private boolean isToday;
     private MainActivity activity;
     private LayoutInflater inflater;
 
-    private ArrayList<ORFParser.ORFProgram> listPrograms[] = new ArrayList[9];
+    private ArrayList<ORFParser.ORFProgram> listPrograms;
+    //private ArrayList<ORFParser.ORFProgram> listPrograms[] = new ArrayList[9];
+
+    private boolean isOffline;
+
+    public ProgramExpandableAdapter(boolean offline, boolean today, String dayLabel) {
+        this.isOffline = offline;
+        this.isToday = today;
+        this.dayLabel = dayLabel;
+    }
 
     public void setInflater(LayoutInflater inflater, MainActivity activity)
     {
@@ -54,8 +65,8 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     public View getChildView(final int groupPosition, final int childPosition, boolean isLastChild, View convertView, ViewGroup parent)
     {
         final ArrayList<ORFParser.ORFProgram> child;
-        if(listPrograms != null && listPrograms[groupPosition] != null) {
-            child = listPrograms[groupPosition];
+        if(listPrograms != null) {
+            child = listPrograms;
         } else {
             child = null;
         }
@@ -69,7 +80,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
         // get the textView/ImageView reference and set the title/info
         textView = (TextView) convertView.findViewById(R.id.textViewTitle);
         ImageView imageViewDownload = (ImageView) convertView.findViewById(R.id.childDownloadImage);
-        if(groupPosition == 8) {
+        if(isOffline) {
             textView.setText(child.get(childPosition).dayLabel + " - " + child.get(childPosition).shortTitle);
             imageViewDownload.setVisibility(View.INVISIBLE);
         } else {
@@ -132,39 +143,29 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
         android.text.format.DateFormat df = new android.text.format.DateFormat();
 
         TextView itemName = (TextView) convertView.findViewById(R.id.dateName);
+        
+        if(isToday) {
+            if(listPrograms != null) {
+                itemName.setText("  Heute: " + listPrograms.size() + " Beiträge");
+            } else {
+                itemName.setText("  Heute: 0 Beiträge");
+            }
+        }
 
-        switch(groupPosition) {
-            case 0:
-                if(listPrograms != null && listPrograms[groupPosition] != null) {
-                    itemName.setText("Heute: " + listPrograms[groupPosition].size() + " Beiträge");
-                } else {
-                    itemName.setText("Heute: 0 Beiträge");
-                }
-                break;
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-                today.add(Calendar.DAY_OF_MONTH,-groupPosition);
-                if(listPrograms != null && listPrograms[groupPosition] != null) {
-                    itemName.setText(android.text.format.DateFormat.format("dd.MM.yyyy", today).toString() + ": " + listPrograms[groupPosition].size() + " Beiträge");
-                } else {
-                    itemName.setText(android.text.format.DateFormat.format("dd.MM.yyyy", today).toString() + ": 0 Beiträge");
-                }
-                break;
-            case 8:
-                if(listPrograms != null && listPrograms[groupPosition] != null) {
-                    itemName.setText("Offline Beiträge:" + listPrograms[groupPosition].size());
-                } else {
-                    itemName.setText("Offline Beiträge: 0");
-                }
-                break;
-            default:
-                itemName.setText("???");
-                break;
+        if(isOffline) {
+            if(listPrograms != null) {
+                itemName.setText("  Offline Beiträge: " + listPrograms.size());
+            } else {
+                itemName.setText("  Offline Beiträge: 0");
+            }
+        }
+
+        if(!isToday && !isOffline) {
+            if(listPrograms != null) {
+                itemName.setText("  " + dayLabel + ": " + listPrograms.size() + " Beiträge");
+            } else {
+                itemName.setText("  " + dayLabel + ": 0 Beiträge");
+            }
         }
         return convertView;
     }
@@ -184,25 +185,10 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     @Override
     public int getChildrenCount(int groupPosition)
     {
-
-        switch(groupPosition) {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-            case 8:
-                if(listPrograms != null && listPrograms[groupPosition] != null) {
-                    return listPrograms[groupPosition].size();
-                } else {
-                    return 0;
-                }
-            default:
-                return 0;
-
+        if(listPrograms != null) {
+            return listPrograms.size();
+        } else {
+            return 0;
         }
     }
 
@@ -215,7 +201,7 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     @Override
     public int getGroupCount()
     {
-        return 9;
+        return 1;
     }
 
     @Override
@@ -248,24 +234,15 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
         return true;
     }
 
-    public void update(ArrayList<ORFParser.ORFProgram> programListToday,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus1,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus2,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus3,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus4,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus5,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus6,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinus7,
-                       ArrayList<ORFParser.ORFProgram> programListTodayMinusOffline) {
-        listPrograms[0] = programListToday;
-        listPrograms[1] = programListTodayMinus1;
-        listPrograms[2] = programListTodayMinus2;
-        listPrograms[3] = programListTodayMinus3;
-        listPrograms[4] = programListTodayMinus4;
-        listPrograms[5] = programListTodayMinus5;
-        listPrograms[6] = programListTodayMinus6;
-        listPrograms[7] = programListTodayMinus7;
-        listPrograms[8] = programListTodayMinusOffline;
+    public void update(ArrayList<ORFParser.ORFProgram> programList) {
+        this.listPrograms = programList;
     }
 
+    public void setDayLabel(String label) {
+        this.dayLabel = label;
+    }
+
+    public String getDayLabel() {
+        return this.dayLabel;
+    }
 }
