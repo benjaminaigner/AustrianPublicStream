@@ -470,10 +470,15 @@ public class MainActivity extends AppCompatActivity {
                         parser.addProgramOffline(child,getBaseContext().getExternalCacheDir());
                         programListOffline = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
 
-                        if(expandableList != null && adapter != null) {
-                            adapterOffline.update(programListOffline);
-                            expandableListOffline.setAdapter(adapterOffline);
-                        }
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if(expandableList != null && adapter != null) {
+                                    adapterOffline.update(programListOffline);
+                                    expandableListOffline.setAdapter(adapterOffline);
+                                }
+                            }
+                        });
                     } else {
                         runOnUiThread(new Runnable() {
                             public void run() {
