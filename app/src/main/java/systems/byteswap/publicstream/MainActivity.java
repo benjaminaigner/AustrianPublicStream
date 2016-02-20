@@ -538,10 +538,14 @@ public class MainActivity extends AppCompatActivity {
             if (!temp.equals(programListOffline)) {
                 programListOffline = temp;
                 dataFragment.setProgramListOffline(temp);
-
                 if(expandableList != null && adapter != null) {
-                    adapterOffline.update(programListOffline);
-                    expandableListOffline.setAdapter(adapterOffline);
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            adapterOffline.update(programListOffline);
+                            expandableListOffline.setAdapter(adapterOffline);
+                        }
+                    });
                 }
             }
         }
