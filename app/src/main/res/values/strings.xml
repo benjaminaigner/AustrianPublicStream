@@ -56,5 +56,7 @@
     Hinter dieser App stehen keine kommerziellen Interessen usw., sie wurde alleine aus Unzufriedenheit mit dem ORF entwickelt.
     Keine meiner Bugreports wurden jemals umgesetzt, also dachte ich mir ich mache einfach eine eigene App. \n\n
     Lizenz: GNU GPLv3\n\n
-    Ein großes Dankeschön an alle Experten bei stackoverflow, ohne deren Tipps wäre es niemals soweit gekommen!</string>
+    Ein großes Dankeschön an alle Experten bei stackoverflow, ohne deren Tipps wäre es niemals soweit gekommen! \n\n
+    Android Assets (Icons) wurden mit dem AndroidAssetStudio erzeugt und unterstehen der Creative Commons Attribution 3.0 Unported Lizenz:\n
+    https://romannurik.github.io/AndroidAssetStudio</string>
 </resources>
