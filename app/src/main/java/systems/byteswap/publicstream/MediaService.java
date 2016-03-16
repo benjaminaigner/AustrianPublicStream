@@ -219,6 +219,10 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         }
     }
 
+    public String getState() {
+        return this.mState;
+    }
+
     public int getDuration() {
         switch(mState) {
             case MEDIA_STATE_PLAYING:

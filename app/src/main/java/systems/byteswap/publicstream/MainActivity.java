@@ -299,15 +299,17 @@ public class MainActivity extends AppCompatActivity {
         });
 
         //add a click listener to the "Play/Pause" button
-        ImageButton buttonPlayPause = (ImageButton) findViewById(R.id.buttonPause);
+        final ImageButton buttonPlayPause = (ImageButton) findViewById(R.id.buttonPause);
         buttonPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
+                if(mService != null) mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
                 handler.removeCallbacks(mRunnableSeek);
                 handler.postDelayed(mRunnableSeek, 1000);
+                updatePlayPauseButton();
             }
         });
+        updatePlayPauseButton();
 
         SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
         seekBar.setMax(1000);
@@ -325,9 +327,33 @@ public class MainActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 if (mService != null) {
                     mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float) seekBar.getProgress() / 1000));
+                    updatePlayPauseButton();
                 }
             }
         });
+    }
+
+    private void updatePlayPauseButton() {
+        ImageButton buttonPlayPause = (ImageButton) findViewById(R.id.buttonPause);
+        buttonPlayPause.setImageResource(R.drawable.ic_av_pause_circle_outline);
+        if(mService != null) {
+            switch(mService.getState()) {
+                case MediaService.MEDIA_STATE_PLAYING:
+                    buttonPlayPause.setVisibility(View.VISIBLE);
+                    break;
+                case MediaService.MEDIA_STATE_IDLE:
+                    buttonPlayPause.setVisibility(View.INVISIBLE);
+                    break;
+                case MediaService.MEDIA_STATE_PAUSED:
+                    buttonPlayPause.setVisibility(View.VISIBLE);
+                    buttonPlayPause.setImageResource(R.drawable.ic_av_play_circle_outline);
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            buttonPlayPause.setVisibility(View.INVISIBLE);
+        }
     }
 
     //listener for list items clicks...
@@ -337,7 +363,7 @@ public class MainActivity extends AppCompatActivity {
         if(dataFragment != null) dataFragment.setTextPlayButton(child.title);
         Toast.makeText(MainActivity.this, "Play", Toast.LENGTH_SHORT).show();
         mService.onCommand(MediaService.ACTION_LOAD, child.url);
-
+        updatePlayPauseButton();
         //schedule the perdiodic seek time / notification update
         handler.removeCallbacks(mRunnableSeek);
         handler.postDelayed(mRunnableSeek, 1000);
@@ -527,6 +553,8 @@ public class MainActivity extends AppCompatActivity {
         //Create the regular update timer for the notifications and the progress bar in the GUI
         handler.removeCallbacks(mRunnableSeek);
         handler.post(mRunnableSeek);
+
+        updatePlayPauseButton();
     }
 
     private void TimerMethodRemoteList() {
@@ -907,6 +935,8 @@ public class MainActivity extends AppCompatActivity {
             //Update the time in the text view (GUI, bottom right)
             TextView time = (TextView)findViewById(R.id.textViewTime);
             time.setText(dateString);
+            updatePlayPauseButton();
+
         }
     }
 

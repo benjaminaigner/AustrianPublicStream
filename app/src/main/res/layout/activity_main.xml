@@ -92,12 +92,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight = "0"
-                android:layout_gravity="bottom"
-                android:src="@drawable/ic_av_pause_circle_outline"
-                />
+                android:layout_gravity="bottom"/>
+                <!-- android:src="@drawable/ic_av_pause_circle_outline" -->
+
             <SeekBar
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="fill_parent"
                 android:layout_weight = "1"
                 android:id="@+id/seekBar"
                 android:layout_gravity="bottom"
