@@ -54,7 +54,6 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
-import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -89,6 +88,7 @@ import java.util.TimerTask;
 public class MainActivity extends AppCompatActivity {
     /** debug tags **/
     public static String TAG_REMOTELIST = "REMOTELIST";
+    public static String TAG_ADAPTER = "ADAPTERPROGS";
 
 
     /** ID for the download notification, unique to differ the notifications for the update **/
@@ -104,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
     int currentDuration;
 
     static ProgramExpandableAdapter adapter;
+    static HeaderAdapter headerAdapter;
 
     //Timer instance for the remotelist (not working with handler -> NetworkOnMainThread exception)
     Timer programDataTimer;
@@ -516,39 +517,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void TimerMethodRemoteList() {
-
-        //Reload the date of the headers
-        ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-        String dateString;
-
-        Calendar day = new GregorianCalendar();
-        /*switch(mViewPager.getCurrentItem()) {
-            case 0:
-                dateString = "Heute, " + DateFormat.format("dd.MM.yyyy", day).toString();
-                break;
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-                day.add(Calendar.DAY_OF_MONTH, (-mViewPager.getCurrentItem()));
-                dateString = DateFormat.format("dd.MM.yyyy", day).toString();
-                break;
-            case 8:
-                dateString = "Offline Beiträge";
-                break;
-            default:
-                dateString = "Hääää?????";
-                break;
-        }
-        TextView textDate = (TextView) findViewById(R.id.textViewDate);
-        if(textDate != null) {
-            textDate.setText(dateString);
-        }*/
-
-
         //fetch all offline programs first
 
         ArrayList<ORFParser.ORFProgram> temp;
@@ -1029,7 +997,6 @@ public class MainActivity extends AppCompatActivity {
          * fragment.
          */
         private static final String ARG_SECTION_DATE = "sectionDate";
-        private static final String ARG_SECTION_DATESTRING = "sectionDateString";
 
         public PlaceholderFragment() {
         }
@@ -1042,32 +1009,6 @@ public class MainActivity extends AppCompatActivity {
             PlaceholderFragment fragment = new PlaceholderFragment();
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_DATE, sectionNumber);
-
-            String dateString;
-
-            Calendar day = new GregorianCalendar();
-            switch(sectionNumber) {
-                case 1:
-                    dateString = "Heute, " + DateFormat.format("dd.MM.yyyy", day).toString();
-                    break;
-                case 2:
-                case 3:
-                case 4:
-                case 5:
-                case 6:
-                case 7:
-                case 8:
-                    day.add(Calendar.DAY_OF_MONTH,(-sectionNumber)+1);
-                    dateString = DateFormat.format("dd.MM.yyyy", day).toString();
-                    break;
-                case 9:
-                    dateString = "Offline Beiträge";
-                    break;
-                default:
-                    dateString = "Hääää?????";
-                    break;
-            }
-            args.putString(ARG_SECTION_DATESTRING, dateString);
             fragment.setArguments(args);
             return fragment;
         }
@@ -1077,67 +1018,64 @@ public class MainActivity extends AppCompatActivity {
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
-            TextView dateText = (TextView) rootView.findViewById(R.id.textViewDate);
-            dateText.setText(getArguments().getString(ARG_SECTION_DATESTRING));
+            //TextView dateText = (TextView) rootView.findViewById(R.id.textViewDate);
+            //dateText.setText(getArguments().getString(ARG_SECTION_DATESTRING));
 
             ListView expandableList = (ListView) rootView.findViewById(R.id.programList);
+            ListView headerList = (ListView) rootView.findViewById(R.id.headerList);
+            headerAdapter = new HeaderAdapter(getArguments().getInt(ARG_SECTION_DATE));
+            headerAdapter.setInflater(getActivity().getLayoutInflater(),getContext());
 
             switch(getArguments().getInt(ARG_SECTION_DATE)) {
                 case 1: //Today
-                    adapter = new ProgramExpandableAdapter(false,true);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListToday);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 2: //Today -1 day
-                    adapter = new ProgramExpandableAdapter(false,false);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus1);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 3: //Today -2 day
-                    adapter = new ProgramExpandableAdapter(false,false);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus2);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 4: //Today -3 day
-                    adapter = new ProgramExpandableAdapter(false,false);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus3);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 5: //Today -4 day
-                    adapter = new ProgramExpandableAdapter(false,false);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus4);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 6: //Today -5 day
-                    adapter = new ProgramExpandableAdapter(false,false);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus5);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 7: //Today -6 day
-                    adapter = new ProgramExpandableAdapter(false,false);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus6);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 8: //Today -7 day
-                    adapter = new ProgramExpandableAdapter(false,false);
+                    adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus7);
-                    expandableList.setAdapter(adapter);
                     break;
                 case 9: //Offline
-                    adapter = new ProgramExpandableAdapter(true,false);
+                    adapter = new ProgramExpandableAdapter(true);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListOffline);
-                    expandableList.setAdapter(adapter);
+
                     break;
             }
+            expandableList.setAdapter(adapter);
+            headerList.setAdapter(headerAdapter);
             return rootView;
         }
     }

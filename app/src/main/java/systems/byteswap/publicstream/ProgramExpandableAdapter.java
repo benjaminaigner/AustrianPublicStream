@@ -21,6 +21,7 @@ package systems.byteswap.publicstream;
 
 import android.content.Context;
 import android.database.DataSetObserver;
+import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,9 +38,6 @@ import java.util.GregorianCalendar;
  */
 
 public class ProgramExpandableAdapter implements ListAdapter {
-
-    private String dayLabel;
-    private boolean isToday;
     private Context context;
     private LayoutInflater inflater;
     private int groupPosition = 0;
@@ -49,11 +47,8 @@ public class ProgramExpandableAdapter implements ListAdapter {
 
     private boolean isOffline;
 
-    public ProgramExpandableAdapter(boolean offline, boolean today) {
-    //public ProgramExpandableAdapter(boolean offline, boolean today, String dayLabel) {
+    public ProgramExpandableAdapter(boolean offline) {
         this.isOffline = offline;
-        this.isToday = today;
-        //this.dayLabel = dayLabel;
     }
 
     public void setInflater(LayoutInflater inflater, Context context)
@@ -103,13 +98,12 @@ public class ProgramExpandableAdapter implements ListAdapter {
         if(listPrograms != null) {
             child = listPrograms;
         } else {
-            child = null;
+            child = new ArrayList<>(0);
         }
 
-        TextView textView = null;
+        TextView textView;
 
         if (convertView == null) {
-
             convertView = inflater.inflate(R.layout.child_view, null);
         }
 
@@ -128,9 +122,8 @@ public class ProgramExpandableAdapter implements ListAdapter {
                 public void onClick(View v) {
                     //Create calendar object (today)
                     Calendar today = new GregorianCalendar();
-                    android.text.format.DateFormat df = new android.text.format.DateFormat();
                     today.add(Calendar.DAY_OF_MONTH, -groupPosition);
-                    ((MainActivity)context).programDownloadClickListener(child.get(position), df.format("dd.MM.yyyy", today).toString());
+                    ((MainActivity)context).programDownloadClickListener(child.get(position), DateFormat.format("dd.MM.yyyy", today).toString());
                 }
             });
             imageViewDownload.setVisibility(View.VISIBLE);
@@ -155,8 +148,7 @@ public class ProgramExpandableAdapter implements ListAdapter {
                 } else {
                     //Create calendar object (today)
                     Calendar today = new GregorianCalendar();
-                    android.text.format.DateFormat df = new android.text.format.DateFormat();
-                    ((MainActivity)context).programLongClickListener(child.get(position), false, df.format("dd.MM.yyyy", today).toString());
+                    ((MainActivity)context).programLongClickListener(child.get(position), false, DateFormat.format("dd.MM.yyyy", today).toString());
                 }
                 return true;
             }
@@ -177,14 +169,6 @@ public class ProgramExpandableAdapter implements ListAdapter {
     @Override
     public boolean isEmpty() {
         return false;
-    }
-
-    public void setDayLabel(String label) {
-        this.dayLabel = label;
-    }
-
-    public String getDayLabel() {
-        return this.dayLabel;
     }
 
     @Override
