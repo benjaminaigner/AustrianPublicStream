@@ -58,5 +58,10 @@
     Lizenz: GNU GPLv3\n\n
     Ein großes Dankeschön an alle Experten bei stackoverflow, ohne deren Tipps wäre es niemals soweit gekommen! \n\n
     Android Assets (Icons) wurden mit dem AndroidAssetStudio erzeugt und unterstehen der Creative Commons Attribution 3.0 Unported Lizenz:\n
-    https://romannurik.github.io/AndroidAssetStudio</string>
+    https://romannurik.github.io/AndroidAssetStudio \n\n
+    Verwendete Libraries:\n
+    ToxicBakery: transformer library (https://github.com/ToxicBakery/ViewPagerTransforms)\n
+    VideoLAN: VLC library (https://wiki.videolan.org/Libvlc/)\n
+    RomanNurik: Android Asset Studio (https://romannurik.github.io/AndroidAssetStudio/)
+    </string>
 </resources>

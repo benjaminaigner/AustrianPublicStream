@@ -16,6 +16,16 @@
 
         You should have received a copy of the GNU General Public License
         along with AustrianPublicStream.  If not, see <http://www.gnu.org/licenses/>.
+
+
+        Contribution:
+        A big "thank you" to following projects/webpages providing sourcecode/libraries/information:
+
+        ToxicBakery for its transformer library (https://github.com/ToxicBakery/ViewPagerTransforms)
+        VideoLAN for its VLC library (https://wiki.videolan.org/Libvlc/)
+        RomanNurik for the Android Asset Studio (https://romannurik.github.io/AndroidAssetStudio/)
+
+        and of course all the experts on stackoverflow for helpful hints!
 **/
 
 package systems.byteswap.publicstream;
@@ -58,6 +68,8 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.ToxicBakery.viewpager.transforms.CubeOutTransformer;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -72,10 +84,13 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 
-//Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
 public class MainActivity extends AppCompatActivity {
+    /** debug tags **/
+    public static String TAG_REMOTELIST = "REMOTELIST";
+
+
     /** ID for the download notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_DOWNLOAD_ID = 1;
     /** ID for the play notification, unique to differ the notifications for the update **/
@@ -131,9 +146,6 @@ public class MainActivity extends AppCompatActivity {
 
     /** flag (from the settings) to show if a notification is issued on the lockscreen */
     boolean showLockscreenNotification = true;
-
-    /** boolean flag for updating the list: if true, some element of the list was changed -> renew the adapter */
-    //public boolean hasChanged = false;
 
     private ServiceConnection mConnection;
 
@@ -224,6 +236,7 @@ public class MainActivity extends AppCompatActivity {
         */
         ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
         mViewPager.setAdapter(mSectionsPagerAdapter);
+        mViewPager.setPageTransformer(true, new CubeOutTransformer());
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -503,6 +516,39 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void TimerMethodRemoteList() {
+
+        //Reload the date of the headers
+        ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+        String dateString;
+
+        Calendar day = new GregorianCalendar();
+        /*switch(mViewPager.getCurrentItem()) {
+            case 0:
+                dateString = "Heute, " + DateFormat.format("dd.MM.yyyy", day).toString();
+                break;
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+                day.add(Calendar.DAY_OF_MONTH, (-mViewPager.getCurrentItem()));
+                dateString = DateFormat.format("dd.MM.yyyy", day).toString();
+                break;
+            case 8:
+                dateString = "Offline Beiträge";
+                break;
+            default:
+                dateString = "Hääää?????";
+                break;
+        }
+        TextView textDate = (TextView) findViewById(R.id.textViewDate);
+        if(textDate != null) {
+            textDate.setText(dateString);
+        }*/
+
+
         //fetch all offline programs first
 
         ArrayList<ORFParser.ORFProgram> temp;
@@ -511,7 +557,11 @@ public class MainActivity extends AppCompatActivity {
         if(temp != null) {
             if (!temp.equals(programListOffline)) {
                 programListOffline = temp;
-                dataFragment.setProgramListOffline(temp);
+                try {
+                    dataFragment.setProgramListOffline(temp);
+                } catch (Exception e) {
+                    Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                }
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -536,7 +586,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListToday)) {
                     programListToday = temp;
-                    dataFragment.setProgramListToday(temp);
+                    try {
+                        dataFragment.setProgramListToday(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -563,7 +617,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus1)) {
                     programListTodayMinus1 = temp;
-                    dataFragment.setProgramListTodayMinus1(temp);
+                    try {
+                        dataFragment.setProgramListTodayMinus1(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -589,7 +647,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus2)) {
                     programListTodayMinus2 = temp;
-                    dataFragment.setProgramListTodayMinus2(temp);
+                    try {
+                        dataFragment.setProgramListTodayMinus2(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -615,7 +677,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus3)) {
                     programListTodayMinus3 = temp;
-                    dataFragment.setProgramListTodayMinus3(temp);
+                    try {
+                        dataFragment.setProgramListTodayMinus3(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -641,7 +707,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus4)) {
                     programListTodayMinus4 = temp;
-                    dataFragment.setProgramListTodayMinus4(temp);
+                    try {
+                        dataFragment.setProgramListTodayMinus4(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -667,7 +737,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus5)) {
                     programListTodayMinus5 = temp;
-                    dataFragment.setProgramListTodayMinus5(temp);
+                    try {
+                        dataFragment.setProgramListTodayMinus5(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -693,7 +767,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if (temp != null && !temp.equals(programListTodayMinus6)) {
                     programListTodayMinus6 = temp;
-                    dataFragment.setProgramListTodayMinus6(temp);
+                    try {
+                        dataFragment.setProgramListTodayMinus6(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -719,7 +797,11 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus7)) {
                     programListTodayMinus7 = temp;
-                    dataFragment.setProgramListTodayMinus7(temp);
+                    try {
+                        dataFragment.setProgramListTodayMinus7(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
+                    }
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
