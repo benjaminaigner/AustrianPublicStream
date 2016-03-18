@@ -255,6 +255,9 @@ public class MainActivity extends AppCompatActivity {
                 TextView text = (TextView) findViewById(R.id.textViewCurrentStream);
                 if (dataFragment != null) dataFragment.setTextPlayButton("LIVE");
                 text.setText("LIVE");
+                handler.removeCallbacks(mRunnableSeek);
+                handler.postDelayed(mRunnableSeek, 1000);
+                updatePlayPauseButton();
             }
         });
 
