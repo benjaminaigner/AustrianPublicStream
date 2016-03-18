@@ -16,6 +16,16 @@
 
         You should have received a copy of the GNU General Public License
         along with AustrianPublicStream.  If not, see <http://www.gnu.org/licenses/>.
+
+
+        Contribution:
+        A big "thank you" to following projects/webpages providing sourcecode/libraries/information:
+
+        ToxicBakery for its transformer library (https://github.com/ToxicBakery/ViewPagerTransforms)
+        VideoLAN for its VLC library (https://wiki.videolan.org/Libvlc/)
+        RomanNurik for the Android Asset Studio (https://romannurik.github.io/AndroidAssetStudio/)
+
+        and of course all the experts on stackoverflow for helpful hints!
 **/
 
 package systems.byteswap.publicstream;
@@ -38,6 +48,9 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
@@ -46,12 +59,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.ExpandableListView;
 import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.ToxicBakery.viewpager.transforms.CubeOutTransformer;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -67,34 +83,18 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 
-//Android 5/6: Liste wird nicht richig gesichret (im 4 schon)
 //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
 
 public class MainActivity extends AppCompatActivity {
+    /** debug tags **/
+    public static String TAG_REMOTELIST = "REMOTELIST";
+    public static String TAG_ADAPTER = "ADAPTERPROGS";
+
+
     /** ID for the download notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_DOWNLOAD_ID = 1;
     /** ID for the play notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_PLAY_ID = 2;
-
-    //create one adapter
-    ProgramExpandableAdapter adapter;
-    ProgramExpandableAdapter adapter1;
-    ProgramExpandableAdapter adapter2;
-    ProgramExpandableAdapter adapter3;
-    ProgramExpandableAdapter adapter4;
-    ProgramExpandableAdapter adapter5;
-    ProgramExpandableAdapter adapter6;
-    ProgramExpandableAdapter adapter7;
-    ProgramExpandableAdapter adapterOffline;
-    ExpandableListView expandableList;
-    ExpandableListView expandableList1;
-    ExpandableListView expandableList2;
-    ExpandableListView expandableList3;
-    ExpandableListView expandableList4;
-    ExpandableListView expandableList5;
-    ExpandableListView expandableList6;
-    ExpandableListView expandableList7;
-    ExpandableListView expandableListOffline;
 
     //Handler to process all postDelayed operations (timer replacement for Android)
     private Handler handler = new Handler();
@@ -102,6 +102,9 @@ public class MainActivity extends AppCompatActivity {
     MediaService mService;
     int currentTime;
     int currentDuration;
+
+    static ProgramExpandableAdapter adapter;
+    static HeaderAdapter headerAdapter;
 
     //Timer instance for the remotelist (not working with handler -> NetworkOnMainThread exception)
     Timer programDataTimer;
@@ -113,24 +116,26 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    //Runnable instance for the local list (will be posted to the handler)
-    /*Runnable mRunnableList = new Runnable() {
-        public void run() {
-            TimerMethodList();
-        }
-    };*/
-
+    /**
+     The {@link android.support.v4.view.PagerAdapter} that will provide
+     fragments for each of the sections. We use a
+     {@link FragmentPagerAdapter} derivative, which will keep every
+     loaded fragment in memory. If this becomes too memory intensive, it
+     may be best to switch to a
+     {@link android.support.v4.app.FragmentStatePagerAdapter}.
+     */
+    SectionsPagerAdapter mSectionsPagerAdapter;
 
     private MainFragment dataFragment;
-    private ArrayList<ORFParser.ORFProgram> programListToday;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus2;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus3;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus4;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus5;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
-    private ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
-    private ArrayList<ORFParser.ORFProgram> programListOffline;
+    private static ArrayList<ORFParser.ORFProgram> programListToday;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus1;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus2;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus3;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus4;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus5;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus6;
+    private static ArrayList<ORFParser.ORFProgram> programListTodayMinus7;
+    private static ArrayList<ORFParser.ORFProgram> programListOffline;
     /** boolean flag to show if a notification was already created. If paused, only one notification is issued */
     boolean isPausedNotified = false;
 
@@ -142,9 +147,6 @@ public class MainActivity extends AppCompatActivity {
 
     /** flag (from the settings) to show if a notification is issued on the lockscreen */
     boolean showLockscreenNotification = true;
-
-    /** boolean flag for updating the list: if true, some element of the list was changed -> renew the adapter */
-    //public boolean hasChanged = false;
 
     private ServiceConnection mConnection;
 
@@ -226,58 +228,16 @@ public class MainActivity extends AppCompatActivity {
             if(dataFragment.getTextPlayButton() != null) textViewCurrentStream.setText(dataFragment.getTextPlayButton());
         }
 
-        // Create the Adapter
-        adapter = new ProgramExpandableAdapter(false,true,"");
-        adapter.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapter1 = new ProgramExpandableAdapter(false,false,"");
-        adapter1.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapter2 = new ProgramExpandableAdapter(false,false,"");
-        adapter2.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapter3 = new ProgramExpandableAdapter(false,false,"");
-        adapter3.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapter4 = new ProgramExpandableAdapter(false,false,"");
-        adapter4.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapter5 = new ProgramExpandableAdapter(false,false,"");
-        adapter5.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapter6 = new ProgramExpandableAdapter(false,false,"");
-        adapter6.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapter7 = new ProgramExpandableAdapter(false,false,"");
-        adapter7.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
-        adapterOffline = new ProgramExpandableAdapter(true,false,"");
-        adapterOffline.setInflater((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE), this);
+        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
 
 
-        //create expandable list view / set properties
-        expandableList = (ExpandableListView)(findViewById(R.id.expandableProgramList));
-        expandableList.setClickable(true);
-        expandableList1 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus1));
-        expandableList1.setClickable(true);
-        expandableList2 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus2));
-        expandableList2.setClickable(true);
-        expandableList3 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus3));
-        expandableList3.setClickable(true);
-        expandableList4 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus4));
-        expandableList4.setClickable(true);
-        expandableList5 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus5));
-        expandableList5.setClickable(true);
-        expandableList6 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus6));
-        expandableList6.setClickable(true);
-        expandableList7 = (ExpandableListView)(findViewById(R.id.expandableProgramListMinus7));
-        expandableList7.setClickable(true);
-        expandableListOffline = (ExpandableListView)(findViewById(R.id.expandableProgramListOffline));
-        expandableListOffline.setClickable(true);
-
-        // Set the Adapter to expandableList
-        expandableList.setAdapter(adapter);
-        expandableList1.setAdapter(adapter1);
-        expandableList2.setAdapter(adapter2);
-        expandableList3.setAdapter(adapter3);
-        expandableList4.setAdapter(adapter4);
-        expandableList5.setAdapter(adapter5);
-        expandableList6.setAdapter(adapter6);
-        expandableList7.setAdapter(adapter7);
-        expandableListOffline.setAdapter(adapterOffline);
-
+        /**
+            Set up the ViewPager with the sections adapter.
+            The {@link ViewPager} that will host the section contents.
+        */
+        ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+        mViewPager.setAdapter(mSectionsPagerAdapter);
+        mViewPager.setPageTransformer(true, new CubeOutTransformer());
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -295,6 +255,9 @@ public class MainActivity extends AppCompatActivity {
                 TextView text = (TextView) findViewById(R.id.textViewCurrentStream);
                 if (dataFragment != null) dataFragment.setTextPlayButton("LIVE");
                 text.setText("LIVE");
+                handler.removeCallbacks(mRunnableSeek);
+                handler.postDelayed(mRunnableSeek, 1000);
+                updatePlayPauseButton();
             }
         });
 
@@ -388,11 +351,13 @@ public class MainActivity extends AppCompatActivity {
                         programListOffline = temp;
                         dataFragment.setProgramListOffline(temp);
                     }
-
-                    if(expandableList != null && adapter != null) {
-                        adapterOffline.update(programListOffline);
-                        expandableListOffline.setAdapter(adapterOffline);
-                    }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             });
             builder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
@@ -495,14 +460,11 @@ public class MainActivity extends AppCompatActivity {
                         child.url = folder + "/" + fileName;
                         parser.addProgramOffline(child,getBaseContext().getExternalCacheDir());
                         programListOffline = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
-
-                        handler.post(new Runnable() {
+                        runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                if(expandableList != null && adapter != null) {
-                                    adapterOffline.update(programListOffline);
-                                    expandableListOffline.setAdapter(adapterOffline);
-                                }
+                                ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                                mViewPager.getAdapter().notifyDataSetChanged();
                             }
                         });
                     } else {
@@ -559,24 +521,28 @@ public class MainActivity extends AppCompatActivity {
 
     private void TimerMethodRemoteList() {
         //fetch all offline programs first
+
         ArrayList<ORFParser.ORFProgram> temp;
         ORFParser parser = new ORFParser();
         temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
         if(temp != null) {
             if (!temp.equals(programListOffline)) {
                 programListOffline = temp;
-                dataFragment.setProgramListOffline(temp);
-                if(expandableList != null && adapter != null) {
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            adapterOffline.update(programListOffline);
-                            expandableListOffline.setAdapter(adapterOffline);
-                        }
-                    });
+                try {
+                    dataFragment.setProgramListOffline(temp);
+                } catch (Exception e) {
+                    Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                 }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                        mViewPager.getAdapter().notifyDataSetChanged();
+                    }
+                });
             }
         }
+
 
         //post all fetch actions (for each day since today-1week)
         new Thread(new Runnable() {
@@ -591,19 +557,22 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListToday)) {
                     programListToday = temp;
-                    dataFragment.setProgramListToday(temp);
-                    if(expandableList != null && adapter != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                adapter.update(programListToday);
-                                expandableList.setAdapter(adapter);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListToday(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
+
 
         new Thread(new Runnable() {
             @Override
@@ -619,20 +588,18 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus1)) {
                     programListTodayMinus1 = temp;
-                    dataFragment.setProgramListTodayMinus1(temp);
-                    if(expandableList1 != null && adapter1 != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                android.text.format.DateFormat df = new android.text.format.DateFormat();
-                                Calendar day = new GregorianCalendar();
-                                day.add(Calendar.DAY_OF_MONTH,-1);
-                                adapter1.setDayLabel(df.format("dd.MM.yyyy", day).toString());
-                                adapter1.update(programListTodayMinus1);
-                                expandableList1.setAdapter(adapter1);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListTodayMinus1(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
@@ -651,20 +618,18 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus2)) {
                     programListTodayMinus2 = temp;
-                    dataFragment.setProgramListTodayMinus2(temp);
-                    if(expandableList2 != null && adapter2 != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                android.text.format.DateFormat df = new android.text.format.DateFormat();
-                                Calendar day = new GregorianCalendar();
-                                day.add(Calendar.DAY_OF_MONTH,-2);
-                                adapter2.setDayLabel(df.format("dd.MM.yyyy", day).toString());
-                                adapter2.update(programListTodayMinus2);
-                                expandableList2.setAdapter(adapter2);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListTodayMinus2(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
@@ -683,20 +648,18 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus3)) {
                     programListTodayMinus3 = temp;
-                    dataFragment.setProgramListTodayMinus3(temp);
-                    if(expandableList3 != null && adapter3 != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                android.text.format.DateFormat df = new android.text.format.DateFormat();
-                                Calendar day = new GregorianCalendar();
-                                day.add(Calendar.DAY_OF_MONTH,-3);
-                                adapter3.setDayLabel(df.format("dd.MM.yyyy", day).toString());
-                                adapter3.update(programListTodayMinus3);
-                                expandableList3.setAdapter(adapter3);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListTodayMinus3(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
@@ -715,20 +678,18 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus4)) {
                     programListTodayMinus4 = temp;
-                    dataFragment.setProgramListTodayMinus4(temp);
-                    if(expandableList4 != null && adapter4 != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                android.text.format.DateFormat df = new android.text.format.DateFormat();
-                                Calendar day = new GregorianCalendar();
-                                day.add(Calendar.DAY_OF_MONTH,-4);
-                                adapter4.setDayLabel(df.format("dd.MM.yyyy", day).toString());
-                                adapter4.update(programListTodayMinus4);
-                                expandableList4.setAdapter(adapter4);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListTodayMinus4(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
@@ -747,20 +708,18 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus5)) {
                     programListTodayMinus5 = temp;
-                    dataFragment.setProgramListTodayMinus5(temp);
-                    if(expandableList5 != null && adapter5 != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                android.text.format.DateFormat df = new android.text.format.DateFormat();
-                                Calendar day = new GregorianCalendar();
-                                day.add(Calendar.DAY_OF_MONTH,-5);
-                                adapter5.setDayLabel(df.format("dd.MM.yyyy", day).toString());
-                                adapter5.update(programListTodayMinus5);
-                                expandableList5.setAdapter(adapter5);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListTodayMinus5(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
@@ -779,20 +738,18 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if (temp != null && !temp.equals(programListTodayMinus6)) {
                     programListTodayMinus6 = temp;
-                    dataFragment.setProgramListTodayMinus6(temp);
-                    if(expandableList6 != null && adapter6 != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                android.text.format.DateFormat df = new android.text.format.DateFormat();
-                                Calendar day = new GregorianCalendar();
-                                day.add(Calendar.DAY_OF_MONTH,-6);
-                                adapter6.setDayLabel(df.format("dd.MM.yyyy", day).toString());
-                                adapter6.update(programListTodayMinus6);
-                                expandableList6.setAdapter(adapter6);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListTodayMinus6(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
@@ -811,20 +768,18 @@ public class MainActivity extends AppCompatActivity {
                 temp = parser.getProgramsForDay(today.getTime());
                 if(temp != null && !temp.equals(programListTodayMinus7)) {
                     programListTodayMinus7 = temp;
-                    dataFragment.setProgramListTodayMinus7(temp);
-                    if(expandableList7 != null && adapter7 != null) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                android.text.format.DateFormat df = new android.text.format.DateFormat();
-                                Calendar day = new GregorianCalendar();
-                                day.add(Calendar.DAY_OF_MONTH,-7);
-                                adapter7.setDayLabel(df.format("dd.MM.yyyy", day).toString());
-                                adapter7.update(programListTodayMinus7);
-                                expandableList7.setAdapter(adapter7);
-                            }
-                        });
+                    try {
+                        dataFragment.setProgramListTodayMinus7(temp);
+                    } catch (Exception e) {
+                        Log.e(MainActivity.TAG_REMOTELIST,"Exception while saving list to fragment");
                     }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
             }
         }).start();
@@ -1034,6 +989,132 @@ public class MainActivity extends AppCompatActivity {
         // create and register the remote control client
         RemoteControlClient myRemoteControlClient = new RemoteControlClient(mediaPendingIntent);
         myAudioManager.registerRemoteControlClient(myRemoteControlClient);
+    }
+
+    /**
+     * A placeholder fragment containing a simple view.
+     */
+    public static class PlaceholderFragment extends Fragment {
+        /**
+         * The fragment argument representing the section number for this
+         * fragment.
+         */
+        private static final String ARG_SECTION_DATE = "sectionDate";
+
+        public PlaceholderFragment() {
+        }
+
+        /**
+         * Returns a new instance of this fragment for the given section
+         * number.
+         */
+        public static PlaceholderFragment newInstance(int sectionNumber) {
+            PlaceholderFragment fragment = new PlaceholderFragment();
+            Bundle args = new Bundle();
+            args.putInt(ARG_SECTION_DATE, sectionNumber);
+            fragment.setArguments(args);
+            return fragment;
+        }
+
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+
+            //TextView dateText = (TextView) rootView.findViewById(R.id.textViewDate);
+            //dateText.setText(getArguments().getString(ARG_SECTION_DATESTRING));
+
+            ListView expandableList = (ListView) rootView.findViewById(R.id.programList);
+            ListView headerList = (ListView) rootView.findViewById(R.id.headerList);
+            headerAdapter = new HeaderAdapter(getArguments().getInt(ARG_SECTION_DATE));
+            headerAdapter.setInflater(getActivity().getLayoutInflater(),getContext());
+
+            switch(getArguments().getInt(ARG_SECTION_DATE)) {
+                case 1: //Today
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListToday);
+                    break;
+                case 2: //Today -1 day
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListTodayMinus1);
+                    break;
+                case 3: //Today -2 day
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListTodayMinus2);
+                    break;
+                case 4: //Today -3 day
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListTodayMinus3);
+                    break;
+                case 5: //Today -4 day
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListTodayMinus4);
+                    break;
+                case 6: //Today -5 day
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListTodayMinus5);
+                    break;
+                case 7: //Today -6 day
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListTodayMinus6);
+                    break;
+                case 8: //Today -7 day
+                    adapter = new ProgramExpandableAdapter(false);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListTodayMinus7);
+                    break;
+                case 9: //Offline
+                    adapter = new ProgramExpandableAdapter(true);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListOffline);
+
+                    break;
+            }
+            expandableList.setAdapter(adapter);
+            headerList.setAdapter(headerAdapter);
+            return rootView;
+        }
+    }
+
+    /**
+     * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
+     * one of the sections/tabs/pages.
+     */
+    public class SectionsPagerAdapter extends FragmentPagerAdapter {
+
+        public SectionsPagerAdapter(android.support.v4.app.FragmentManager fm) {
+            super(fm);
+        }
+
+        @Override
+        public Fragment getItem(int position) {
+            // getItem is called to instantiate the fragment for the given page.
+            // Return a PlaceholderFragment (defined as a static inner class below).
+            return PlaceholderFragment.newInstance(position + 1);
+        }
+
+        @Override
+        public int getItemPosition(Object object) {
+            return POSITION_NONE;
+        }
+
+        @Override
+        public int getCount() {
+            // Show 9 total pages (7days in the past, today and the offline parts)
+            return 9;
+        }
+
+        @Override
+        public CharSequence getPageTitle(int position) {
+            return null;
+        }
     }
 }
 

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/AustrianPublicStream.iml" filepath="$PROJECT_DIR$/AustrianPublicStream.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ViewPager/ViewPager.iml" filepath="$PROJECT_DIR$/ViewPager/ViewPager.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/libvlc/libvlc.iml" filepath="$PROJECT_DIR$/libvlc/libvlc.iml" />
     </modules>

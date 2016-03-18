@@ -19,11 +19,14 @@
  **/
 package systems.byteswap.publicstream;
 
+import android.content.Context;
+import android.database.DataSetObserver;
+import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseExpandableListAdapter;
 import android.widget.ImageView;
+import android.widget.ListAdapter;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -34,157 +37,38 @@ import java.util.GregorianCalendar;
  * Expandable list adapter, to show the program list
  */
 
-//TODO: bei click farbig hinterlegen...
-public class ProgramExpandableAdapter extends BaseExpandableListAdapter
-{
-
-    private String dayLabel;
-    private boolean isToday;
-    private MainActivity activity;
+public class ProgramExpandableAdapter implements ListAdapter {
+    private Context context;
     private LayoutInflater inflater;
+    private int groupPosition = 0;
 
     private ArrayList<ORFParser.ORFProgram> listPrograms;
     //private ArrayList<ORFParser.ORFProgram> listPrograms[] = new ArrayList[9];
 
     private boolean isOffline;
 
-    public ProgramExpandableAdapter(boolean offline, boolean today, String dayLabel) {
+    public ProgramExpandableAdapter(boolean offline) {
         this.isOffline = offline;
-        this.isToday = today;
-        this.dayLabel = dayLabel;
     }
 
-    public void setInflater(LayoutInflater inflater, MainActivity activity)
+    public void setInflater(LayoutInflater inflater, Context context)
     {
         this.inflater = inflater;
-        this.activity = activity;
-    }
-
-    // method getChildView is called automatically for each child view.
-    @Override
-    public View getChildView(final int groupPosition, final int childPosition, boolean isLastChild, View convertView, ViewGroup parent)
-    {
-        final ArrayList<ORFParser.ORFProgram> child;
-        if(listPrograms != null) {
-            child = listPrograms;
-        } else {
-            child = null;
-        }
-
-        TextView textView = null;
-
-        if (convertView == null) {
-            convertView = inflater.inflate(R.layout.child_view, null);
-        }
-
-        // get the textView/ImageView reference and set the title/info
-        textView = (TextView) convertView.findViewById(R.id.textViewTitle);
-        ImageView imageViewDownload = (ImageView) convertView.findViewById(R.id.childDownloadImage);
-        if(isOffline) {
-            textView.setText(child.get(childPosition).dayLabel + " - " + child.get(childPosition).shortTitle);
-            imageViewDownload.setVisibility(View.INVISIBLE);
-        } else {
-            textView.setText(child.get(childPosition).time + " - " + child.get(childPosition).shortTitle);
-
-            // set the ClickListener to handle the click events on the download button
-            imageViewDownload.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    //Create calendar object (today)
-                    Calendar today = new GregorianCalendar();
-                    android.text.format.DateFormat df = new android.text.format.DateFormat();
-                    today.add(Calendar.DAY_OF_MONTH, -groupPosition);
-                    activity.programDownloadClickListener(child.get(childPosition), df.format("dd.MM.yyyy", today).toString());
-                }
-            });
-            imageViewDownload.setVisibility(View.VISIBLE);
-        }
-        textView = (TextView) convertView.findViewById(R.id.textViewChildInfo);
-        textView.setText(child.get(childPosition).info);
-
-        // set the ClickListener to handle the click event on child item
-        convertView.setOnClickListener(new View.OnClickListener() {
-
-            @Override
-            public void onClick(View view) {
-                activity.programClickListener(child.get(childPosition));
-            }
-        });
-
-        convertView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                if(groupPosition == 8) {
-                    activity.programLongClickListener(child.get(childPosition),true, "");
-                } else {
-                    //Create calendar object (today)
-                    Calendar today = new GregorianCalendar();
-                    android.text.format.DateFormat df = new android.text.format.DateFormat();
-                    activity.programLongClickListener(child.get(childPosition),false, df.format("dd.MM.yyyy", today).toString());
-                }
-                return true;
-            }
-        });
-        return convertView;
-    }
-
-    // method getGroupView is called automatically for each parent item
-    // Implement this method as per your requirement
-    @Override
-    public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent)
-    {
-
-        if (convertView == null) {
-            convertView = inflater.inflate(R.layout.parent_view, null);
-        }
-
-        //Create calendar object (today)
-        Calendar today = new GregorianCalendar();
-        android.text.format.DateFormat df = new android.text.format.DateFormat();
-
-        TextView itemName = (TextView) convertView.findViewById(R.id.dateName);
-        
-        if(isToday) {
-            if(listPrograms != null) {
-                itemName.setText("  Heute: " + listPrograms.size() + " Beiträge");
-            } else {
-                itemName.setText("  Heute: 0 Beiträge");
-            }
-        }
-
-        if(isOffline) {
-            if(listPrograms != null) {
-                itemName.setText("  Offline Beiträge: " + listPrograms.size());
-            } else {
-                itemName.setText("  Offline Beiträge: 0");
-            }
-        }
-
-        if(!isToday && !isOffline) {
-            if(listPrograms != null) {
-                itemName.setText("  " + dayLabel + ": " + listPrograms.size() + " Beiträge");
-            } else {
-                itemName.setText("  " + dayLabel + ": 0 Beiträge");
-            }
-        }
-        return convertView;
+        this.context = context;
     }
 
     @Override
-    public Object getChild(int groupPosition, int childPosition)
-    {
-        return null;
+    public void registerDataSetObserver(DataSetObserver observer) {
+
     }
 
     @Override
-    public long getChildId(int groupPosition, int childPosition)
-    {
-        return 0;
+    public void unregisterDataSetObserver(DataSetObserver observer) {
+
     }
 
     @Override
-    public int getChildrenCount(int groupPosition)
-    {
+    public int getCount() {
         if(listPrograms != null) {
             return listPrograms.size();
         } else {
@@ -193,32 +77,12 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     }
 
     @Override
-    public Object getGroup(int groupPosition)
-    {
+    public Object getItem(int position) {
         return null;
     }
 
     @Override
-    public int getGroupCount()
-    {
-        return 1;
-    }
-
-    @Override
-    public void onGroupCollapsed(int groupPosition)
-    {
-        super.onGroupCollapsed(groupPosition);
-    }
-
-    @Override
-    public void onGroupExpanded(int groupPosition)
-    {
-        super.onGroupExpanded(groupPosition);
-    }
-
-    @Override
-    public long getGroupId(int groupPosition)
-    {
+    public long getItemId(int position) {
         return 0;
     }
 
@@ -229,20 +93,95 @@ public class ProgramExpandableAdapter extends BaseExpandableListAdapter
     }
 
     @Override
-    public boolean isChildSelectable(int groupPosition, int childPosition)
-    {
+    public View getView(final int position, View convertView, ViewGroup parent) {
+        final ArrayList<ORFParser.ORFProgram> child;
+        if(listPrograms != null) {
+            child = listPrograms;
+        } else {
+            child = new ArrayList<>(0);
+        }
+
+        TextView textView;
+
+        if (convertView == null) {
+            convertView = inflater.inflate(R.layout.child_view, null);
+        }
+
+        // get the textView/ImageView reference and set the title/info
+        textView = (TextView) convertView.findViewById(R.id.textViewTitle);
+        ImageView imageViewDownload = (ImageView) convertView.findViewById(R.id.childDownloadImage);
+        if(isOffline) {
+            textView.setText(child.get(position).dayLabel + " - " + child.get(position).shortTitle);
+            imageViewDownload.setVisibility(View.INVISIBLE);
+        } else {
+            textView.setText(child.get(position).time + " - " + child.get(position).shortTitle);
+
+            // set the ClickListener to handle the click events on the download button
+            imageViewDownload.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    //Create calendar object (today)
+                    Calendar today = new GregorianCalendar();
+                    today.add(Calendar.DAY_OF_MONTH, -groupPosition);
+                    ((MainActivity)context).programDownloadClickListener(child.get(position), DateFormat.format("dd.MM.yyyy", today).toString());
+                }
+            });
+            imageViewDownload.setVisibility(View.VISIBLE);
+        }
+        textView = (TextView) convertView.findViewById(R.id.textViewChildInfo);
+        textView.setText(child.get(position).info);
+
+        // set the ClickListener to handle the click event on child item
+        convertView.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View view) {
+                ((MainActivity)context).programClickListener(child.get(position));
+            }
+        });
+
+        convertView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                if(groupPosition == 8) {
+                    ((MainActivity)context).programLongClickListener(child.get(position), true, "");
+                } else {
+                    //Create calendar object (today)
+                    Calendar today = new GregorianCalendar();
+                    ((MainActivity)context).programLongClickListener(child.get(position), false, DateFormat.format("dd.MM.yyyy", today).toString());
+                }
+                return true;
+            }
+        });
+        return convertView;
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        return 0;
+    }
+
+    @Override
+    public int getViewTypeCount() {
+        return 1;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return false;
+    }
+
+    @Override
+    public boolean areAllItemsEnabled() {
         return true;
     }
 
-    public void update(ArrayList<ORFParser.ORFProgram> programList) {
-        this.listPrograms = programList;
+    @Override
+    public boolean isEnabled(int position) {
+        return true;
     }
 
-    public void setDayLabel(String label) {
-        this.dayLabel = label;
-    }
-
-    public String getDayLabel() {
-        return this.dayLabel;
+    public void setListPrograms(ArrayList<ORFParser.ORFProgram> listPrograms) {
+        this.listPrograms = listPrograms;
     }
 }

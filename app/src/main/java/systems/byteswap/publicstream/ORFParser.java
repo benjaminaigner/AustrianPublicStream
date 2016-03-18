@@ -167,7 +167,7 @@ public class ORFParser {
             NodeList nl = doc.getElementsByTagName(XML_PROGRAM);
 
             //iterate all "program" nodes
-            for (int i = 0; i < nl.getLength(); i++) {
+            for (int i = nl.getLength() - 1 ; i >= 0; i--) {
                 Element e = (Element) nl.item(i);
                 //fetch all XML tags
                 String daylabel = ORFParser.getValue(e, XML_DAYLABEL);
