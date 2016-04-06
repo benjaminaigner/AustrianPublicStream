@@ -57,6 +57,7 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     public final static String ACTION_LOAD = "systems.byteswap.action.LOAD";
 
     public final static String MEDIA_STATE_IDLE = "systems.byteswap.mediastate.IDLE";
+
     public final static String MEDIA_STATE_PLAYING = "systems.byteswap.mediastate.PLAYING";
     public final static String MEDIA_STATE_PAUSED = "systems.byteswap.mediastate.PAUSED";
 

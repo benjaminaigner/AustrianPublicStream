@@ -537,7 +537,11 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                        mViewPager.getAdapter().notifyDataSetChanged();
+                        try {
+                            mViewPager.getAdapter().notifyDataSetChanged();
+                        } catch (IllegalStateException e) {
+                            Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                        }
                     }
                 });
             }
@@ -566,7 +570,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -597,7 +605,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -627,7 +639,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -657,7 +673,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -687,7 +707,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -717,7 +741,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -747,7 +775,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -777,7 +809,11 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                            mViewPager.getAdapter().notifyDataSetChanged();
+                            try {
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w(MainActivity.TAG_REMOTELIST,"Exception while updating list: " + e.getMessage());
+                            }
                         }
                     });
                 }
@@ -878,6 +914,7 @@ public class MainActivity extends AppCompatActivity {
                         mNotification = mNotifyBuilder.build();
                         isPausedNotified = false;
                         Log.i("NOTE", "PLAY -> update...");
+
                         mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID, mNotification);
                     }
                     if(showLockscreenNotification) {
