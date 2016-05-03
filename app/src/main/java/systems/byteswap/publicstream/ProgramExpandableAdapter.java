@@ -35,6 +35,11 @@ import java.util.GregorianCalendar;
 
 /**
  * Expandable list adapter, to show the program list
+ * This adapter is based on a normal list adapter, building
+ * a view for each program, consisting of:
+ * -) Download icon (not shown if it is an offline program)
+ * -) Short title
+ * -) Description
  */
 
 public class ProgramExpandableAdapter implements ListAdapter {
@@ -143,7 +148,8 @@ public class ProgramExpandableAdapter implements ListAdapter {
         convertView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                if(groupPosition == 8) {
+                //TODO: schauen ob 1 (vorher war 8) hier passt, wegen der verschiebung...
+                if(groupPosition == 1) {
                     ((MainActivity)context).programLongClickListener(child.get(position), true, "");
                 } else {
                     //Create calendar object (today)

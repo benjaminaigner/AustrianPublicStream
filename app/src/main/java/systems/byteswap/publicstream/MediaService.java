@@ -25,6 +25,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.telephony.PhoneStateListener;
@@ -38,6 +39,9 @@ import org.videolan.libvlc.MediaPlayer;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
+//TODO: irgendwie wird hier mit der Mediaplayerinstanz geschlampt...
+//TODO: eventuell auch im Fragment speichern?
+
 /**
  * The media service class provides an interface to the VLC player as a service.
  *
@@ -48,7 +52,7 @@ import java.util.ArrayList;
  *
  * In some occasions there might be a problem with the wifi/wakelocks. Should be investigated sometime.
  */
-public class MediaService extends Service implements IVLCVout.Callback, LibVLC.HardwareAccelerationError {
+public class MediaService extends Service implements IVLCVout.Callback, LibVLC.HardwareAccelerationError, Media.EventListener {
     public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAYPAUSE";
     public final static String ACTION_PLAY = "systems.byteswap.action.PLAY";
     public final static String ACTION_PAUSE = "systems.byteswap.action.PAUSE";
@@ -65,12 +69,51 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     private LibVLC libvlc;
     private String mState = MEDIA_STATE_IDLE;
     private String mStatePrevious = MEDIA_STATE_IDLE;
+    private final IBinder mBinder = new LocalBinder();
     private MediaPlayer.EventListener mPlayerListener = new MyPlayerListener(this);
     private WifiManager.WifiLock wifiLock;
     private PowerManager.WakeLock wakeLock;
     private boolean isLive = false;
     PhoneStateListener phoneStateListener;
 
+    public MediaService() {
+    }
+
+    @Override
+    public void onCreate() {
+        wifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
+                .createWifiLock(WifiManager.WIFI_MODE_FULL, "publicStreamWifiLock");
+        wakeLock = ((PowerManager) getSystemService(Context.POWER_SERVICE))
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "publicStreamWakeLock");
+    }
+
+    @Override
+    public void onEvent(Media.Event event) {
+        //TODO: media event listener
+    }
+
+    private class LocalBinder extends Binder {
+        MediaService getService() {
+            return MediaService.this;
+        }
+    }
+    public static MediaService getService(IBinder iBinder) {
+        LocalBinder binder = (LocalBinder) iBinder;
+        return binder.getService();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        if (mState.equals(MEDIA_STATE_IDLE)) stopSelf();
+        return true;
+    }
+
+/*
     @Override
     public IBinder onBind(Intent intent) {
         wifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
@@ -94,8 +137,9 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
             }
         };
         //return new LocalBinder<MediaService>(this);
-        return new LocalBinder<>(this);
+        return new LocalBinder<MediaService>(this);
     }
+    */
 
 
     public boolean onCommand(String command, String parameter) {
@@ -200,7 +244,7 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
 
     @Override
     public void onDestroy() {
-        if(mMediaPlayer != null) {
+        if(mMediaPlayer != null && this.getState() == MediaService.MEDIA_STATE_IDLE) {
             try {
                 mMediaPlayer.release();
             } catch (Exception e) {
@@ -289,9 +333,9 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
             // Create LibVLC
             ArrayList<String> options = new ArrayList<>();
             options.add("--aout=opensles");
-            options.add("--audio-time-stretch"); // time stretching
+            //options.add("--audio-time-stretch"); // time stretching
             options.add("-vvv"); // verbosity
-            //options.add("--network-caching=" + MEDIA_BUFFER_MS);
+            options.add("--network-caching=" + 6000);
 
             libvlc = new LibVLC(options);
             libvlc.setOnHardwareAccelerationError(this);
@@ -306,9 +350,11 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
             } else {
                 m = new Media(libvlc,media);
             }
+            m.setEventListener(this);
             //m.setHWDecoderEnabled(false,false);
             m.addOption(":network-caching=6000");
             mMediaPlayer.setMedia(m);
+            m.release();
             mMediaPlayer.play();
         } catch (Exception e) {
             Toast.makeText(MediaService.this, "Fehler beim Erstellen des Players...", Toast.LENGTH_SHORT).show();
@@ -319,9 +365,13 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
     private void releasePlayer() {
         if (libvlc == null)
             return;
-        mMediaPlayer.stop();
-        libvlc.release();
-        libvlc = null;
+        if(mMediaPlayer != null) {
+            mMediaPlayer.stop();
+        }
+        if(libvlc != null) {
+            libvlc.release();
+            libvlc = null;
+        }
     }
 
     public static int safeLongToInt(long l) {
@@ -356,6 +406,7 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                 case MediaPlayer.Event.EndReached:
                     player.setState(MediaService.MEDIA_STATE_IDLE);
                     player.releasePlayer();
+                    player = null;
                     break;
                 case MediaPlayer.Event.Playing:
                 case MediaPlayer.Event.Paused:

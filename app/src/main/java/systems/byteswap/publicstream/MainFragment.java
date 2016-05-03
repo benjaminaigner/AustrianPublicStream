@@ -52,6 +52,8 @@ public class MainFragment extends Fragment {
     private Intent mServiceIntent;
     private ProgramExpandableAdapter adapter;
     private ExpandableListView expandableList;
+    private int currentTime;
+    private int currentDuration;
 
     private String textPlayButton;
 
@@ -183,5 +185,21 @@ public class MainFragment extends Fragment {
 
     public ExpandableListView getExpandableList() {
         return expandableList;
+    }
+
+    public int getCurrentDuration() {
+        return currentDuration;
+    }
+
+    public void setCurrentDuration(int currentDuration) {
+        this.currentDuration = currentDuration;
+    }
+
+    public int getCurrentTime() {
+        return currentTime;
+    }
+
+    public void setCurrentTime(int currentTime) {
+        this.currentTime = currentTime;
     }
 }

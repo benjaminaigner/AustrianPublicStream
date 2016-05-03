@@ -42,7 +42,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
-import android.media.RemoteControlClient;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -71,6 +71,7 @@ import com.ToxicBakery.viewpager.transforms.CubeOutTransformer;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -82,14 +83,12 @@ import java.util.GregorianCalendar;
 import java.util.Timer;
 import java.util.TimerTask;
 
-
-//TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
+//TODO: ordentlich kommentieren & clean-up
 
 public class MainActivity extends AppCompatActivity {
     /** debug tags **/
     public static String TAG_REMOTELIST = "REMOTELIST";
     public static String TAG_ADAPTER = "ADAPTERPROGS";
-
 
     /** ID for the download notification, unique to differ the notifications for the update **/
     public static int NOTIFICATION_DOWNLOAD_ID = 1;
@@ -150,10 +149,116 @@ public class MainActivity extends AppCompatActivity {
 
     private ServiceConnection mConnection;
 
+    /*
+    @Override
+    protected void onSaveInstanceState (Bundle outState) {
+        // find the retained fragment on activity restarts
+        FragmentManager fm = getFragmentManager();
+        try {
+            fm.beginTransaction().add(dataFragment, "data").commit();
+        } catch(IllegalStateException e) {
+            Log.w("sdfd","Fragment already saved");
+        }
+        super.onSaveInstanceState(outState);
+    }*/
+
+    @Override
+    protected void onRestoreInstanceState (Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        FragmentManager fm = getFragmentManager();
+        dataFragment = (MainFragment) fm.findFragmentByTag("data");
+        if(dataFragment == null) {
+            createWithoutFragment();
+        } else {
+            restoreFromFragment();
+        }
+    }
+
+    void createWithoutFragment() {
+        Intent mMediaServiceIntent;
+
+        // add the fragment
+        dataFragment = new MainFragment();
+
+
+        mConnection = new ServiceConnection() {
+            public void onServiceConnected(ComponentName className, IBinder service) {
+                //mService = ((LocalBinder<MediaService>) service).getService();
+                mService = MediaService.getService(service);
+                dataFragment.setMediaService(mService);
+            }
+
+            public void onServiceDisconnected(ComponentName className) {
+                //TODO: soll ich hier was aufräumen?
+                // As our service is in the same process, this should never be called
+            }
+        };
+
+        dataFragment.setMediaConnection(mConnection);
+
+        //start the mediaplayer service
+        mMediaServiceIntent = new Intent(this, MediaService.class);
+        startService(mMediaServiceIntent);
+        //TODO: Context...
+        //bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
+        bindService(mMediaServiceIntent,mConnection,Context.BIND_IMPORTANT);
+        dataFragment.setMediaServiceIntent(mMediaServiceIntent);
+    }
+
+
+    void restoreFromFragment() {
+        if(dataFragment == null) return;
+
+        Intent mMediaServiceIntent;
+
+        //Restore everything necessary from the dataFragment (if available)
+        programListToday = dataFragment.getProgramListToday();
+        programListTodayMinus1 = dataFragment.getProgramListTodayMinus1();
+        programListTodayMinus2 = dataFragment.getProgramListTodayMinus2();
+        programListTodayMinus3 = dataFragment.getProgramListTodayMinus3();
+        programListTodayMinus4 = dataFragment.getProgramListTodayMinus4();
+        programListTodayMinus5 = dataFragment.getProgramListTodayMinus5();
+        programListTodayMinus6 = dataFragment.getProgramListTodayMinus6();
+        programListTodayMinus7 = dataFragment.getProgramListTodayMinus7();
+        currentDuration = dataFragment.getCurrentDuration();
+        currentTime = dataFragment.getCurrentTime();
+        programListOffline = dataFragment.getProgramListOffline();
+        mService = dataFragment.getMediaService();
+        mConnection = dataFragment.getMediaConnection();
+        mMediaServiceIntent = dataFragment.getMediaServiceIntent();
+
+        //if something went wrong, restart the connection...
+        if(mMediaServiceIntent == null || mConnection == null || mService == null) {
+            Log.w("Restore activity","Something went wrong with the service connection, restarting: ");
+            Log.w("Restore activity", "mMediaServiceIntent:" + mMediaServiceIntent);
+            Log.w("Restore activity", "mConnection:" + mConnection);
+            Log.w("Restore activity", "mService:" + mService);
+            mMediaServiceIntent = new Intent(this, MediaService.class);
+            startService(mMediaServiceIntent);
+
+            mConnection = new ServiceConnection() {
+                public void onServiceConnected(ComponentName className, IBinder service) {
+                    //mService = ((LocalBinder<MediaService>) service).getService();
+                    mService = MediaService.getService(service);
+                    dataFragment.setMediaService(mService);
+                }
+
+                public void onServiceDisconnected(ComponentName className) {
+                    // As our service is in the same process, this should never be called
+                }
+            };
+            dataFragment.setMediaConnection(mConnection);
+            dataFragment.setMediaServiceIntent(mMediaServiceIntent);
+        }
+
+        bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
+        TextView textViewCurrentStream = (TextView)findViewById(R.id.textViewCurrentStream);
+        if(dataFragment.getTextPlayButton() != null) textViewCurrentStream.setText(dataFragment.getTextPlayButton());
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Intent mMediaServiceIntent;
 
         setContentView(R.layout.activity_main);
 
@@ -163,69 +268,13 @@ public class MainActivity extends AppCompatActivity {
         // create the fragment and data the first time
         // or load existing data...
         if (dataFragment == null) {
-            // add the fragment
-            dataFragment = new MainFragment();
-
-
-            mConnection = new ServiceConnection() {
-                public void onServiceConnected(ComponentName className, IBinder service) {
-                    mService = ((LocalBinder<MediaService>) service).getService();
-                    dataFragment.setMediaService(mService);
-                }
-
-                public void onServiceDisconnected(ComponentName className) {
-                    // As our service is in the same process, this should never be called
-                }
-            };
-            dataFragment.setMediaConnection(mConnection);
-
-            //start the mediaplayer service
-            mMediaServiceIntent = new Intent(this, MediaService.class);
-            startService(mMediaServiceIntent);
-            bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
-            dataFragment.setMediaServiceIntent(mMediaServiceIntent);
+            //create everything necessary new
+            createWithoutFragment();
+            //commit our fragment (containing data) to the FragmentManager
             fm.beginTransaction().add(dataFragment, "data").commit();
         } else {
-            //Restore everything necessary from the dataFragment (if available)
-            programListToday = dataFragment.getProgramListToday();
-            programListTodayMinus1 = dataFragment.getProgramListTodayMinus1();
-            programListTodayMinus2 = dataFragment.getProgramListTodayMinus2();
-            programListTodayMinus3 = dataFragment.getProgramListTodayMinus3();
-            programListTodayMinus4 = dataFragment.getProgramListTodayMinus4();
-            programListTodayMinus5 = dataFragment.getProgramListTodayMinus5();
-            programListTodayMinus6 = dataFragment.getProgramListTodayMinus6();
-            programListTodayMinus7 = dataFragment.getProgramListTodayMinus7();
-            programListOffline = dataFragment.getProgramListOffline();
-            mService = dataFragment.getMediaService();
-            mConnection = dataFragment.getMediaConnection();
-            mMediaServiceIntent = dataFragment.getMediaServiceIntent();
-
-            //if something went wrong, restart the connection...
-            if(mMediaServiceIntent == null || mConnection == null || mService == null) {
-                Log.w("Restore activity","Something went wrong with the service connection, restarting: ");
-                Log.w("Restore activity", "mMediaServiceIntent:" + mMediaServiceIntent);
-                Log.w("Restore activity", "mConnection:" + mConnection);
-                Log.w("Restore activity", "mService:" + mService);
-                mMediaServiceIntent = new Intent(this, MediaService.class);
-                startService(mMediaServiceIntent);
-
-                mConnection = new ServiceConnection() {
-                    public void onServiceConnected(ComponentName className, IBinder service) {
-                        mService = ((LocalBinder<MediaService>) service).getService();
-                        dataFragment.setMediaService(mService);
-                    }
-
-                    public void onServiceDisconnected(ComponentName className) {
-                        // As our service is in the same process, this should never be called
-                    }
-                };
-                dataFragment.setMediaConnection(mConnection);
-                dataFragment.setMediaServiceIntent(mMediaServiceIntent);
-            }
-
-            bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
-            TextView textViewCurrentStream = (TextView)findViewById(R.id.textViewCurrentStream);
-            if(dataFragment.getTextPlayButton() != null) textViewCurrentStream.setText(dataFragment.getTextPlayButton());
+            //Existing fragment -> restore everything from there
+            restoreFromFragment();
         }
 
         mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
@@ -245,6 +294,11 @@ public class MainActivity extends AppCompatActivity {
         addGUIListener();
     }
 
+    /** add all callbacks to the corresponding GUI elements:
+     * -) Play the live stream
+     * -) Play/Pause button
+     * -) Seekbar
+     */
     public void addGUIListener() {
         //add a click listener to the "Live" button
         Button buttonLive = (Button) findViewById(R.id.buttonLive);
@@ -257,7 +311,7 @@ public class MainActivity extends AppCompatActivity {
                 text.setText("LIVE");
                 handler.removeCallbacks(mRunnableSeek);
                 handler.postDelayed(mRunnableSeek, 1000);
-                updatePlayPauseButton();
+                updateGUIElementsVisibility();
             }
         });
 
@@ -266,13 +320,13 @@ public class MainActivity extends AppCompatActivity {
         buttonPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(mService != null) mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
+                if (mService != null) mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
                 handler.removeCallbacks(mRunnableSeek);
                 handler.postDelayed(mRunnableSeek, 1000);
-                updatePlayPauseButton();
+                updateGUIElementsVisibility();
             }
         });
-        updatePlayPauseButton();
+        updateGUIElementsVisibility();
 
         SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
         seekBar.setMax(1000);
@@ -290,24 +344,35 @@ public class MainActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 if (mService != null) {
                     mService.onCommand(MediaService.ACTION_SETTIME, String.valueOf((float) seekBar.getProgress() / 1000));
-                    updatePlayPauseButton();
+                    updateGUIElementsVisibility();
                 }
             }
         });
     }
 
-    private void updatePlayPauseButton() {
+    /**
+     * Update the visibility settings for the play/pause button in the main activity
+     */
+    private void updateGUIElementsVisibility() {
         ImageButton buttonPlayPause = (ImageButton) findViewById(R.id.buttonPause);
+        TextView time = (TextView)findViewById(R.id.textViewTime);
+        SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
         buttonPlayPause.setImageResource(R.drawable.ic_av_pause_circle_outline);
         if(mService != null) {
             switch(mService.getState()) {
                 case MediaService.MEDIA_STATE_PLAYING:
+                    seekBar.setVisibility(View.VISIBLE);
+                    time.setVisibility(View.VISIBLE);
                     buttonPlayPause.setVisibility(View.VISIBLE);
                     break;
                 case MediaService.MEDIA_STATE_IDLE:
+                    seekBar.setVisibility(View.INVISIBLE);
+                    time.setVisibility(View.INVISIBLE);
                     buttonPlayPause.setVisibility(View.INVISIBLE);
                     break;
                 case MediaService.MEDIA_STATE_PAUSED:
+                    seekBar.setVisibility(View.VISIBLE);
+                    time.setVisibility(View.VISIBLE);
                     buttonPlayPause.setVisibility(View.VISIBLE);
                     buttonPlayPause.setImageResource(R.drawable.ic_av_play_circle_outline);
                     break;
@@ -315,24 +380,31 @@ public class MainActivity extends AppCompatActivity {
                     break;
             }
         } else {
+            seekBar.setVisibility(View.INVISIBLE);
+            time.setVisibility(View.INVISIBLE);
             buttonPlayPause.setVisibility(View.INVISIBLE);
         }
     }
 
-    //listener for list items clicks...
+    /** callback listener for short clicks
+     * Used to play the selected programs
+     */
     public void programClickListener(ORFParser.ORFProgram child) {
         TextView streamtext = (TextView) findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
         if(dataFragment != null) dataFragment.setTextPlayButton(child.title);
         Toast.makeText(MainActivity.this, "Play", Toast.LENGTH_SHORT).show();
         mService.onCommand(MediaService.ACTION_LOAD, child.url);
-        updatePlayPauseButton();
+        updateGUIElementsVisibility();
         //schedule the perdiodic seek time / notification update
         handler.removeCallbacks(mRunnableSeek);
         handler.postDelayed(mRunnableSeek, 1000);
     }
 
-    //listener for list items clicks...
+    /** callback listener for long clicks.
+     * Used to delete an already loaded program
+     * TODO: funzt gerade nicht???
+    */
     public void programLongClickListener(final ORFParser.ORFProgram child, boolean toDelete, String datum) {
         if(toDelete) {
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -374,127 +446,156 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    private class DownloadProgramTask extends AsyncTask<ORFParser.ORFProgram, Integer, Void> {
+        /** The system calls this to perform work in a worker thread and
+         * delivers it the parameters given to AsyncTask.execute() */
+        //Download according to: https://stackoverflow.com/questions/6407324/how-to-get-image-from-url-in-android/13174188#13174188
+        protected Void doInBackground(ORFParser.ORFProgram... childs) {
+            ORFParser.ORFProgram child = childs[0];
+            String fileName;
+            try {
+                ORFParser parser = new ORFParser();
+                //setup the connection
+                URL orfURL = new URL(child.url);
+                HttpURLConnection urlConnection = (HttpURLConnection) orfURL.openConnection();
+                urlConnection.setRequestMethod("GET");
+                urlConnection.setDoOutput(true);
+                urlConnection.connect();
 
-    //listener for download item clicks
-    //Download according to: https://stackoverflow.com/questions/6407324/how-to-get-image-from-url-in-android/13174188#13174188
-    public void programDownloadClickListener(final ORFParser.ORFProgram child, final String datum) {
-        Toast.makeText(MainActivity.this, "Download...", Toast.LENGTH_SHORT).show();
-        //String message;
-        new Thread(new Runnable() {
-            public void run() {
-                String fileName;
-                try{
-                    ORFParser parser = new ORFParser();
-                    //setup the connection
-                    URL orfURL = new URL(child.url);
-                    HttpURLConnection urlConnection = (HttpURLConnection) orfURL.openConnection();
-                    urlConnection.setRequestMethod("GET");
-                    urlConnection.setDoOutput(true);
-                    urlConnection.connect();
+                //create the file
+                SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+                //TODO: external storage? is jetzt nicht die SD Karte...
+                String settingsPath = settings.getString(getString(R.string.SETTINGS_DOWNLOADFOLDER), Environment.getExternalStorageDirectory().toString());
+                if (settingsPath.equals(""))
+                    settingsPath = Environment.getExternalStorageDirectory().toString();
 
-                    //create the file
-                    SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-                    String settingsPath = settings.getString(getString(R.string.SETTINGS_DOWNLOADFOLDER),Environment.getExternalStorageDirectory().toString());
-                    if(settingsPath.equals("")) settingsPath = Environment.getExternalStorageDirectory().toString();
+                File folder = new File(settingsPath + "/Ö1-Beiträge");
+                fileName = child.dayLabel + "-" + child.time.replace(':', '.') + "-" + child.shortTitle.replace('/','_') + ".mp3";
+                folder.mkdirs();
 
-                    File folder = new File(settingsPath + "/Ö1-Beiträge");
-                    fileName = datum + "-" + child.time.replace(':','.') + "-" + child.shortTitle + ".mp3";
-                    folder.mkdirs();
+                File file = new File(folder, fileName);
+                if (file.createNewFile()) {
+                    file.createNewFile();
+                }
 
-                    File file = new File(folder, fileName);
-                    if (file.createNewFile()) {
-                        file.createNewFile();
+                //Setup the streams
+                FileOutputStream fileOutput = new FileOutputStream(file);
+                InputStream inputStream = urlConnection.getInputStream();
+
+                //this is the total size of the file
+                int totalSize = urlConnection.getContentLength();
+                //variable to store total downloaded bytes
+                int downloadedSize = 0;
+
+                //create a buffer...
+                byte[] buffer = new byte[1024];
+                int bufferLength; //used to store a temporary size of the buffer
+
+                //Create a notification to show the download progress
+                NotificationManager mNotificationManager =
+                        (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                int progress = 0;
+                int progresstemp;
+                NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
+                        .setContentTitle("Download")
+                        .setContentText(child.title + "0%")
+                        .setSmallIcon(R.drawable.notification_download);
+
+                //now, read through the input buffer and write the contents to the file
+                while ((bufferLength = inputStream.read(buffer)) > 0) {
+                    //add the data in the buffer to the file in the file output stream (the file on the sd card
+                    fileOutput.write(buffer, 0, bufferLength);
+                    //add up the size so we know how much is downloaded
+                    downloadedSize += bufferLength;
+                    //show every progress change in the notification
+                    progresstemp = (int) (((float) downloadedSize / (float) totalSize) * 100);
+                    if (progresstemp != progress) {
+                        mNotifyBuilder.setContentText(child.title + " " + progresstemp + "%");
+                        mNotifyBuilder.setProgress(100, progresstemp, false);
+                        mNotificationManager.notify(
+                                MainActivity.NOTIFICATION_DOWNLOAD_ID,
+                                mNotifyBuilder.build());
+                        progress = progresstemp;
                     }
 
-                    //Setup the streams
-                    FileOutputStream fileOutput = new FileOutputStream(file);
-                    InputStream inputStream = urlConnection.getInputStream();
-
-                    //this is the total size of the file
-                    int totalSize = urlConnection.getContentLength();
-                    //variable to store total downloaded bytes
-                    int downloadedSize = 0;
-
-                    //create a buffer...
-                    byte[] buffer = new byte[1024];
-                    int bufferLength; //used to store a temporary size of the buffer
-
-                    //Create a notification to show the download progress
-                    NotificationManager mNotificationManager =
-                            (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                    int progress = 0;
-                    int progresstemp;
-                    NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
-                            .setContentTitle("Download")
-                            .setContentText(child.title + "0%")
-                            .setSmallIcon(R.drawable.notification_download);
-
-                    //now, read through the input buffer and write the contents to the file
-                    while ((bufferLength = inputStream.read(buffer)) > 0) {
-                        //add the data in the buffer to the file in the file output stream (the file on the sd card
-                        fileOutput.write(buffer, 0, bufferLength);
-                        //add up the size so we know how much is downloaded
-                        downloadedSize += bufferLength;
-                        //show every progress change in the notification
-                        progresstemp = (int)(((float)downloadedSize/(float)totalSize)*100);
-                        if(progresstemp != progress) {
-                            mNotifyBuilder.setContentText(child.title + " " + progresstemp +"%");
-                            mNotifyBuilder.setProgress(100, progresstemp, false);
-                            mNotificationManager.notify(
-                                    MainActivity.NOTIFICATION_DOWNLOAD_ID,
-                                    mNotifyBuilder.build());
-                            progress = progresstemp;
-                        }
+                    if (isCancelled()) {
+                        mNotificationManager.cancelAll();
+                        break;
                     }
-                    //close the output stream when done
+                }
+                //close the output stream when done
 
-                    fileOutput.close();
+                fileOutput.close();
 
-                    if(downloadedSize==totalSize) {
-                        runOnUiThread(new Runnable() {
-                            public void run() {
-                                Toast.makeText(getBaseContext(), "Download abgeschlossen", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                        //Finally: add the downloaded program to the offline list and update the UI...
-                        child.url = folder + "/" + fileName;
-                        parser.addProgramOffline(child,getBaseContext().getExternalCacheDir());
-                        programListOffline = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
-                                mViewPager.getAdapter().notifyDataSetChanged();
-                            }
-                        });
-                    } else {
-                        runOnUiThread(new Runnable() {
-                            public void run() {
-                                Toast.makeText(getBaseContext(), "Fehler: unvollständiger Download", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    }
-                } catch(final Exception e) {
+                if (downloadedSize == totalSize) {
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            Toast.makeText(getBaseContext(), "Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getBaseContext(), "Download abgeschlossen", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    //Finally: add the downloaded program to the offline list and update the UI...
+                    child.url = folder + "/" + fileName;
+                    parser.addProgramOffline(child, getBaseContext().getExternalCacheDir());
+                    programListOffline = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                                mViewPager.getAdapter().notifyDataSetChanged();
+                            } catch (IllegalStateException e) {
+                                Log.w("DOWNLOAD",e.getMessage());
+                            }
+                        }
+                    });
+                } else {
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            Toast.makeText(getBaseContext(), "Fehler: unvollständiger Download", Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
+            } catch(final IOException e) {
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        Log.e("DOWNLOAD", e.getMessage());
+                        Toast.makeText(getBaseContext(), "Fehler: keine Berechtigung (bitte in den Einstellungen freischalten)", Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch(final Exception e) {
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        Log.e("DOWNLOAD", e.getMessage());
+                        Toast.makeText(getBaseContext(), "Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+
+                    }
+                });
             }
-        }).start();
+            return null;
+        }
+
+        protected void onProgressUpdate(Integer... progress) {
+        }
+
+
+        /** The system calls this to perform work in the UI thread and delivers
+         * the result from doInBackground() */
+        protected void onPostExecute(Void result) {
+
+        }
+    }
+
+
+    /** listener for download item clicks **/
+    public void programDownloadClickListener(final ORFParser.ORFProgram child, final String datum) {
+        Toast.makeText(getBaseContext(), "Download", Toast.LENGTH_SHORT).show();
+        //create a new AsyncTask
+        new DownloadProgramTask().execute(child);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-
-        //on resume: no delay for the first execution...
-
-        //Schedule the regular (local) list update via the ProgramExpandableAdapter
-        //handler.post(mRunnableList);
-
-
         //load settings from preferences (interval of the refetch and notification settings)
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
         int interval = Integer.valueOf(settings.getString(getString(R.string.SETTINGS_REFETCH_INTERVAL), "5"));
@@ -515,10 +616,13 @@ public class MainActivity extends AppCompatActivity {
         //Create the regular update timer for the notifications and the progress bar in the GUI
         handler.removeCallbacks(mRunnableSeek);
         handler.post(mRunnableSeek);
-
-        updatePlayPauseButton();
+        //Update the Play/Pause button in the main activity
+        updateGUIElementsVisibility();
     }
 
+    /**
+     * Regular called timer method, fetching the remote lists in 9 concurrent threads
+     */
     private void TimerMethodRemoteList() {
         //fetch all offline programs first
 
@@ -821,11 +925,16 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    /**
+     * Regular scheduled method, updating following information:
+     * Current seek time / full time of the program in the notification
+     * Current seek time / full time / progress bar in the main activity
+     */
     private void TimerMethodSeek() {
         if(mService != null) {
+            /** create the notification **/
             Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class)
                     .setFlags(Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
-            //.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
 
             NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
@@ -834,7 +943,8 @@ public class MainActivity extends AppCompatActivity {
             NotificationManager mNotificationManager =
                     (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             Notification mNotification;
-            //mNotifyBuilder.setLatestEventInfo(getApplicationContext(), from, message, contentIntent);
+
+            /** manage time formats, depending on play state **/
             SimpleDateFormat formatter = new SimpleDateFormat("mm:ss");
             int timeStamp = mService.getCurrentPosition();
             String dateString;
@@ -852,6 +962,7 @@ public class MainActivity extends AppCompatActivity {
                 default:
                     dateString = formatter.format(new Date(timeStamp));
                     currentTime = timeStamp;
+                    dataFragment.setCurrentTime(timeStamp);
                     break;
             }
             //add the separator
@@ -868,6 +979,7 @@ public class MainActivity extends AppCompatActivity {
                 default:
                     dateString += formatter.format(new Date(timeStamp));
                     currentDuration = timeStamp;
+                    dataFragment.setCurrentDuration(currentDuration);
                     break;
             }
 
@@ -882,7 +994,7 @@ public class MainActivity extends AppCompatActivity {
                 seekbar.setProgress(0);
             }
 
-            //set the corresponding notification
+            /** set the corresponding notification **/
             switch(timeStamp) {
                 case -1:
                     //cancel() if the playback is stopped
@@ -918,7 +1030,7 @@ public class MainActivity extends AppCompatActivity {
                         mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID, mNotification);
                     }
                     if(showLockscreenNotification) {
-                        drawLockScrenNotification(this);
+                        drawLockScreenNotification(this);
                     }
                     handler.postDelayed(mRunnableSeek, 1000);
                     break;
@@ -927,33 +1039,15 @@ public class MainActivity extends AppCompatActivity {
             //Update the time in the text view (GUI, bottom right)
             TextView time = (TextView)findViewById(R.id.textViewTime);
             time.setText(dateString);
-            updatePlayPauseButton();
-
+            updateGUIElementsVisibility();
         }
     }
-
-
-    /** update the list view, the data is fetched in the other timer method */
-    /*private void TimerMethodList() {
-        adapter.update(programListToday, programListTodayMinus1,
-                programListTodayMinus2, programListTodayMinus3,
-                programListTodayMinus4, programListTodayMinus5,
-                programListTodayMinus6, programListTodayMinus7,
-                programListOffline);
-        if(expandableList != null && adapter != null && hasChanged) {
-            expandableList.setAdapter(adapter);
-            hasChanged = false;
-        }
-        //re-schedule this runnable...
-        handler.postDelayed(mRunnableList,2000);
-    }*/
 
     @Override
     public void onPause() {
         super.onPause();
         //Stop the regular list update
         programDataTimer.cancel();
-        //handler.removeCallbacks(mRunnableList);
     }
 
     @Override
@@ -991,7 +1085,9 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void drawLockScrenNotification (Context context){
+    public void drawLockScreenNotification (Context context){
+        //TODO: die LockScreenNotification machen...
+        //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
         /*// Creates an Intent for the Activity
         Intent notifyIntent = new Intent(this, MainActivity.class);
         // Sets the Activity to start in a new, empty task
@@ -1024,8 +1120,8 @@ public class MainActivity extends AppCompatActivity {
         mediaButtonIntent.setComponent(myEventReceiver);
         PendingIntent mediaPendingIntent = PendingIntent.getBroadcast(getApplicationContext(), 0, mediaButtonIntent, 0);
         // create and register the remote control client
-        RemoteControlClient myRemoteControlClient = new RemoteControlClient(mediaPendingIntent);
-        myAudioManager.registerRemoteControlClient(myRemoteControlClient);
+        //RemoteControlClient myRemoteControlClient = new RemoteControlClient(mediaPendingIntent);
+        //myAudioManager.registerRemoteControlClient(myRemoteControlClient);
     }
 
     /**
@@ -1058,60 +1154,56 @@ public class MainActivity extends AppCompatActivity {
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
-            //TextView dateText = (TextView) rootView.findViewById(R.id.textViewDate);
-            //dateText.setText(getArguments().getString(ARG_SECTION_DATESTRING));
-
             ListView expandableList = (ListView) rootView.findViewById(R.id.programList);
             ListView headerList = (ListView) rootView.findViewById(R.id.headerList);
             headerAdapter = new HeaderAdapter(getArguments().getInt(ARG_SECTION_DATE));
             headerAdapter.setInflater(getActivity().getLayoutInflater(),getContext());
 
             switch(getArguments().getInt(ARG_SECTION_DATE)) {
-                case 1: //Today
+                case 1: //Offline
+                    adapter = new ProgramExpandableAdapter(true);
+                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
+                    adapter.setListPrograms(programListOffline);
+                    break;
+                case 2: //Today
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListToday);
                     break;
-                case 2: //Today -1 day
+                case 3: //Today -1 day
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus1);
                     break;
-                case 3: //Today -2 day
+                case 4: //Today -2 day
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus2);
                     break;
-                case 4: //Today -3 day
+                case 5: //Today -3 day
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus3);
                     break;
-                case 5: //Today -4 day
+                case 6: //Today -4 day
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus4);
                     break;
-                case 6: //Today -5 day
+                case 7: //Today -5 day
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus5);
                     break;
-                case 7: //Today -6 day
+                case 8: //Today -6 day
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus6);
                     break;
-                case 8: //Today -7 day
+                case 9: //Today -7 day
                     adapter = new ProgramExpandableAdapter(false);
                     adapter.setInflater(getActivity().getLayoutInflater(), getContext());
                     adapter.setListPrograms(programListTodayMinus7);
-                    break;
-                case 9: //Offline
-                    adapter = new ProgramExpandableAdapter(true);
-                    adapter.setInflater(getActivity().getLayoutInflater(), getContext());
-                    adapter.setListPrograms(programListOffline);
-
                     break;
             }
             expandableList.setAdapter(adapter);
