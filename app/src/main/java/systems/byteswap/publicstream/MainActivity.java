@@ -30,19 +30,23 @@
 
 package systems.byteswap.publicstream;
 
+import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.app.FragmentManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -50,6 +54,7 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
@@ -68,6 +73,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.ToxicBakery.viewpager.transforms.CubeOutTransformer;
+
+import org.videolan.libvlc.util.AndroidUtil;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -154,6 +161,11 @@ public class MainActivity extends AppCompatActivity {
     private ServiceConnection mConnection;
 
     int currentDownloadNotificationId = NOTIFICATION_DOWNLOAD_ID;
+
+    public final static int NOTIFICATION_COMMAND_CANCEL = 1;
+    public final static int NOTIFICATION_COMMAND_UPDATE_TEXT = 2;
+    public final static int NOTIFICATION_COMMAND_UPDATE_ICON = 3;
+    public final static int NOTIFICATION_COMMAND_NOTHING = 4;
 
     @Override
     protected void onRestoreInstanceState (Bundle savedInstanceState) {
@@ -269,6 +281,13 @@ public class MainActivity extends AppCompatActivity {
 
         mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
 
+
+
+        IntentFilter filter = new IntentFilter();
+        filter.setPriority(Integer.MAX_VALUE);
+        filter.addAction(MediaService.ACTION_PLAY_PAUSE);
+        registerReceiver(mReceiver, filter);
+        registerV21();
 
         /**
             Set up the ViewPager with the sections adapter.
@@ -620,10 +639,14 @@ public class MainActivity extends AppCompatActivity {
 
 
         //Create the regular update timer for the notifications and the progress bar in the GUI
-        handler.removeCallbacks(mRunnableSeek);
-        handler.post(mRunnableSeek);
+        attachTimerMethodSeek();
         //Update the Play/Pause button in the main activity
         updateGUIElementsVisibility();
+    }
+
+    public void attachTimerMethodSeek() {
+        handler.removeCallbacks(mRunnableSeek);
+        handler.post(mRunnableSeek);
     }
 
     /**
@@ -931,6 +954,40 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void registerV21() {
+        final IntentFilter intentFilter = new IntentFilter(AudioManager.ACTION_HDMI_AUDIO_PLUG);
+        registerReceiver(mReceiverV21, intentFilter);
+    }
+
+    private final BroadcastReceiver mReceiverV21 = AndroidUtil.isLolliPopOrLater() ? new BroadcastReceiver()
+    {
+        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (action == null)
+                return;
+        }
+    } : null;
+
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if( mService == null ) {
+                Log.w("TAG", "Intent received, but MediaService is not loaded, skipping.");
+                return;
+            }
+
+            if(action.equalsIgnoreCase(MediaService.ACTION_PLAY_PAUSE)) {
+                mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
+                attachTimerMethodSeek();
+            }
+        }
+    };
+
     /**
      * Regular scheduled method, updating following information:
      * Current seek time / full time of the program in the notification
@@ -938,18 +995,6 @@ public class MainActivity extends AppCompatActivity {
      */
     private void TimerMethodSeek() {
         if(mService != null) {
-            /** create the notification **/
-            Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class)
-                    .setFlags(Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
-            PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
-
-            NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(getBaseContext())
-                    .setContentTitle("Ö1 - PublicStream")
-                    .setSmallIcon(R.drawable.notification_play).setContentIntent(contentIntent);
-            NotificationManager mNotificationManager =
-                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            Notification mNotification;
-
             /** manage time formats, depending on play state **/
             SimpleDateFormat formatter = new SimpleDateFormat("mm:ss");
             int timeStamp = mService.getCurrentPosition();
@@ -1005,7 +1050,7 @@ public class MainActivity extends AppCompatActivity {
                 case -1:
                     //cancel() if the playback is stopped
                     mService.stopForeground(true);
-                    mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
+                    updateScreenNotification(NOTIFICATION_COMMAND_CANCEL, "");
                     isPausedNotified = false;
                     Log.i("NOTE","STOPPED -> cancel");
                     handler.removeCallbacks(mRunnableSeek);
@@ -1015,28 +1060,19 @@ public class MainActivity extends AppCompatActivity {
                     //if paused && not notified already (done only once)
                     if(!isPausedNotified && showPausedNotification) {
                         isPausedNotified = true;
-                        mNotifyBuilder.setContentText("Pause: " + dateString);
-                        mNotification = mNotifyBuilder.build();
-                        mNotificationManager.notify(
-                                MainActivity.NOTIFICATION_PLAY_ID, mNotification);
+                        updateScreenNotification(NOTIFICATION_COMMAND_UPDATE_TEXT, "Pause: " + dateString);
                         Log.i("NOTE", "PAUSED -> new notification");
                     }
-                    if(!showPausedNotification) mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
+                    if(!showPausedNotification) updateScreenNotification(NOTIFICATION_COMMAND_CANCEL,"");
                     handler.removeCallbacks(mRunnableSeek);
                     Log.i("NOTE","PAUSED -> already notified");
                     break;
                 default:
                     //if the playback is active, display the current time
-                    mNotifyBuilder.setContentText("Abspielen: " + dateString);
                     if(showPlayNotification) {
-                        mNotification = mNotifyBuilder.build();
                         isPausedNotified = false;
                         Log.i("NOTE", "PLAY -> update...");
-
-                        mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID, mNotification);
-                    }
-                    if(showLockscreenNotification) {
-                        drawLockScreenNotification(this);
+                        mService.startForeground(MainActivity.NOTIFICATION_PLAY_ID, updateScreenNotification(NOTIFICATION_COMMAND_UPDATE_TEXT, "Abspielen: " + dateString));
                     }
                     handler.postDelayed(mRunnableSeek, 1000);
                     break;
@@ -1091,43 +1127,47 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void drawLockScreenNotification (Context context){
-        //TODO: die LockScreenNotification machen...
-        //TODO: playback notifications am lockscreen: https://developer.android.com/guide/topics/ui/notifiers/notifications.html#lockscreenNotification
-        /*// Creates an Intent for the Activity
-        Intent notifyIntent = new Intent(this, MainActivity.class);
-        // Sets the Activity to start in a new, empty task
-        notifyIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-            | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        // Creates the PendingIntent
-        PendingIntent pausePendingIntent =
-                PendingIntent.getActivity(this,0,notifyIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT
-                );
+    private Notification updateScreenNotification(int command, String parameter) {
+        /** create the notification **/
+        Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class)
+                .setFlags(Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
+        PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        Notification mNotification;
 
-
-        Notification notification = new Notification.Builder(context)
-                // Show controls on lock screen even when user hides sensitive content.
-                .setVisibility(Notification.VISIBILITY_PUBLIC)
+        NotificationCompat.Builder mNotifyBuilder = new NotificationCompat.Builder(mService)
+                .setContentTitle("Ö1 - PublicStream")
                 .setSmallIcon(R.drawable.notification_play)
-                // Add media control buttons that invoke intents in your media service
-                .addAction(R.drawable.ic_av_pause_circle_outline, "Pause", pausePendingIntent)  // #1
-                // Apply the media style template
-                .setStyle(new Notification.MediaStyle()
-                        .setShowActionsInCompactView(0))
-                .build();
-                                //.setLargeIcon(albumArtBitmap)
-                                //.setMediaSession(mMediaSession.getSessionToken())*/
-        ComponentName myEventReceiver = new ComponentName(getPackageName(), MainActivity.class.getName());
-        AudioManager myAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        myAudioManager.registerMediaButtonEventReceiver(myEventReceiver);
-        // build the PendingIntent for the remote control client
-        Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-        mediaButtonIntent.setComponent(myEventReceiver);
-        PendingIntent mediaPendingIntent = PendingIntent.getBroadcast(getApplicationContext(), 0, mediaButtonIntent, 0);
-        // create and register the remote control client
-        //RemoteControlClient myRemoteControlClient = new RemoteControlClient(mediaPendingIntent);
-        //myAudioManager.registerRemoteControlClient(myRemoteControlClient);
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(contentIntent);
+
+        //PLay Pause
+        PendingIntent piPlayPause = PendingIntent.getBroadcast(mService, 0, new Intent(MediaService.ACTION_PLAY_PAUSE), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        switch(command) {
+            case NOTIFICATION_COMMAND_CANCEL:
+                mNotificationManager.cancel(MainActivity.NOTIFICATION_PLAY_ID);
+                return null;
+            case NOTIFICATION_COMMAND_UPDATE_ICON:
+                return null;
+            case NOTIFICATION_COMMAND_UPDATE_TEXT:
+                mNotifyBuilder.setContentText(parameter);
+                if(mService.getState().equals(MediaService.MEDIA_STATE_PLAYING)) {
+                    mNotifyBuilder.addAction(R.drawable.ic_av_pause_circle_outline,"Pause",piPlayPause);
+                } else {
+                    mNotifyBuilder.addAction(R.drawable.ic_av_play_circle_outline,"Play",piPlayPause);
+                }
+                mNotification = mNotifyBuilder.build();
+                mNotificationManager.notify(
+                        MainActivity.NOTIFICATION_PLAY_ID, mNotification);
+
+                return mNotification;
+            case NOTIFICATION_COMMAND_NOTHING:
+                return mNotifyBuilder.build();
+            default:
+                return null;
+        }
     }
 
     /**
