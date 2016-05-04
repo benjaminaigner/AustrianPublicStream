@@ -90,10 +90,12 @@ public class MainActivity extends AppCompatActivity {
     public static String TAG_REMOTELIST = "REMOTELIST";
     public static String TAG_ADAPTER = "ADAPTERPROGS";
 
-    /** ID for the download notification, unique to differ the notifications for the update **/
-    public static int NOTIFICATION_DOWNLOAD_ID = 1;
+    /** ID for the download notification, unique to differ the notifications for the update
+     * Note: this number should be the highest amongst all notification, because it will be
+     * increased for each concurrent download!!! **/
+    public static int NOTIFICATION_DOWNLOAD_ID = 2;
     /** ID for the play notification, unique to differ the notifications for the update **/
-    public static int NOTIFICATION_PLAY_ID = 2;
+    public static int NOTIFICATION_PLAY_ID = 1;
 
     //Handler to process all postDelayed operations (timer replacement for Android)
     private Handler handler = new Handler();
@@ -104,6 +106,8 @@ public class MainActivity extends AppCompatActivity {
 
     static ProgramExpandableAdapter adapter;
     static HeaderAdapter headerAdapter;
+
+    boolean useHWAccel = true;
 
     //Timer instance for the remotelist (not working with handler -> NetworkOnMainThread exception)
     Timer programDataTimer;
@@ -149,18 +153,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ServiceConnection mConnection;
 
-    /*
-    @Override
-    protected void onSaveInstanceState (Bundle outState) {
-        // find the retained fragment on activity restarts
-        FragmentManager fm = getFragmentManager();
-        try {
-            fm.beginTransaction().add(dataFragment, "data").commit();
-        } catch(IllegalStateException e) {
-            Log.w("sdfd","Fragment already saved");
-        }
-        super.onSaveInstanceState(outState);
-    }*/
+    int currentDownloadNotificationId = NOTIFICATION_DOWNLOAD_ID;
 
     @Override
     protected void onRestoreInstanceState (Bundle savedInstanceState) {
@@ -189,8 +182,6 @@ public class MainActivity extends AppCompatActivity {
             }
 
             public void onServiceDisconnected(ComponentName className) {
-                //TODO: soll ich hier was aufräumen?
-                // As our service is in the same process, this should never be called
             }
         };
 
@@ -199,8 +190,6 @@ public class MainActivity extends AppCompatActivity {
         //start the mediaplayer service
         mMediaServiceIntent = new Intent(this, MediaService.class);
         startService(mMediaServiceIntent);
-        //TODO: Context...
-        //bindService(mMediaServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
         bindService(mMediaServiceIntent,mConnection,Context.BIND_IMPORTANT);
         dataFragment.setMediaServiceIntent(mMediaServiceIntent);
     }
@@ -226,6 +215,7 @@ public class MainActivity extends AppCompatActivity {
         mService = dataFragment.getMediaService();
         mConnection = dataFragment.getMediaConnection();
         mMediaServiceIntent = dataFragment.getMediaServiceIntent();
+        currentDownloadNotificationId = dataFragment.getCurrentDownloadNotificationId();
 
         //if something went wrong, restart the connection...
         if(mMediaServiceIntent == null || mConnection == null || mService == null) {
@@ -305,6 +295,7 @@ public class MainActivity extends AppCompatActivity {
         buttonLive.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                mService.setUseHWAcceleration(useHWAccel);
                 mService.onCommand(MediaService.ACTION_LOAD, ORFParser.ORF_LIVE_URL);
                 TextView text = (TextView) findViewById(R.id.textViewCurrentStream);
                 if (dataFragment != null) dataFragment.setTextPlayButton("LIVE");
@@ -320,7 +311,10 @@ public class MainActivity extends AppCompatActivity {
         buttonPlayPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (mService != null) mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
+                if (mService != null) {
+                    mService.setUseHWAcceleration(useHWAccel);
+                    mService.onCommand(MediaService.ACTION_PLAY_PAUSE, "");
+                }
                 handler.removeCallbacks(mRunnableSeek);
                 handler.postDelayed(mRunnableSeek, 1000);
                 updateGUIElementsVisibility();
@@ -394,6 +388,7 @@ public class MainActivity extends AppCompatActivity {
         streamtext.setText(child.title);
         if(dataFragment != null) dataFragment.setTextPlayButton(child.title);
         Toast.makeText(MainActivity.this, "Play", Toast.LENGTH_SHORT).show();
+        mService.setUseHWAcceleration(useHWAccel);
         mService.onCommand(MediaService.ACTION_LOAD, child.url);
         updateGUIElementsVisibility();
         //schedule the perdiodic seek time / notification update
@@ -403,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
 
     /** callback listener for long clicks.
      * Used to delete an already loaded program
-     * TODO: funzt gerade nicht???
+     * or download a remote one
     */
     public void programLongClickListener(final ORFParser.ORFProgram child, boolean toDelete, String datum) {
         if(toDelete) {
@@ -447,6 +442,12 @@ public class MainActivity extends AppCompatActivity {
 
 
     private class DownloadProgramTask extends AsyncTask<ORFParser.ORFProgram, Integer, Void> {
+        int notificationId = NOTIFICATION_DOWNLOAD_ID;
+
+        public DownloadProgramTask(int notificationId) {
+            this.notificationId = notificationId;
+        }
+
         /** The system calls this to perform work in a worker thread and
          * delivers it the parameters given to AsyncTask.execute() */
         //Download according to: https://stackoverflow.com/questions/6407324/how-to-get-image-from-url-in-android/13174188#13174188
@@ -513,7 +514,7 @@ public class MainActivity extends AppCompatActivity {
                         mNotifyBuilder.setContentText(child.title + " " + progresstemp + "%");
                         mNotifyBuilder.setProgress(100, progresstemp, false);
                         mNotificationManager.notify(
-                                MainActivity.NOTIFICATION_DOWNLOAD_ID,
+                                this.notificationId,
                                 mNotifyBuilder.build());
                         progress = progresstemp;
                     }
@@ -588,9 +589,13 @@ public class MainActivity extends AppCompatActivity {
 
     /** listener for download item clicks **/
     public void programDownloadClickListener(final ORFParser.ORFProgram child, final String datum) {
-        Toast.makeText(getBaseContext(), "Download", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getBaseContext(), "Download: " + child.shortTitle, Toast.LENGTH_SHORT).show();
+        //increment the download notification id for each download (it is reset if the app is completely closed)
+        currentDownloadNotificationId++;
+        //store the current id to the fragment
+        dataFragment.setCurrentDownloadNotificationId(currentDownloadNotificationId);
         //create a new AsyncTask
-        new DownloadProgramTask().execute(child);
+        new DownloadProgramTask(currentDownloadNotificationId).execute(child);
     }
 
     @Override
@@ -602,6 +607,7 @@ public class MainActivity extends AppCompatActivity {
         showPausedNotification = settings.getBoolean(getString(R.string.SETTINGS_SHOW_PAUSED_NOTIFICATION),true);
         showPlayNotification = settings.getBoolean(getString(R.string.SETTINGS_SHOW_PLAY_NOTIFICATION),true);
         showLockscreenNotification = settings.getBoolean(getString(R.string.SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION),true);
+        useHWAccel = settings.getBoolean(getString(R.string.SETTINGS_HW_ACCELERATOR),true);
 
         //schedule the regular update of the remote list
         programDataTimer = new Timer();
@@ -1157,7 +1163,7 @@ public class MainActivity extends AppCompatActivity {
             ListView expandableList = (ListView) rootView.findViewById(R.id.programList);
             ListView headerList = (ListView) rootView.findViewById(R.id.headerList);
             headerAdapter = new HeaderAdapter(getArguments().getInt(ARG_SECTION_DATE));
-            headerAdapter.setInflater(getActivity().getLayoutInflater(),getContext());
+            headerAdapter.setInflater(getActivity().getLayoutInflater());
 
             switch(getArguments().getInt(ARG_SECTION_DATE)) {
                 case 1: //Offline

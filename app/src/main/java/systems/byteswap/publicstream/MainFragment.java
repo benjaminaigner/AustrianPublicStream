@@ -54,6 +54,7 @@ public class MainFragment extends Fragment {
     private ExpandableListView expandableList;
     private int currentTime;
     private int currentDuration;
+    private int currentDownloadNotificationId;
 
     private String textPlayButton;
 
@@ -201,5 +202,13 @@ public class MainFragment extends Fragment {
 
     public void setCurrentTime(int currentTime) {
         this.currentTime = currentTime;
+    }
+
+    public int getCurrentDownloadNotificationId() {
+        return currentDownloadNotificationId;
+    }
+
+    public void setCurrentDownloadNotificationId(int currentDownloadNotificationId) {
+        this.currentDownloadNotificationId = currentDownloadNotificationId;
     }
 }

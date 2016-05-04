@@ -28,6 +28,7 @@
     <string name="SETTINGS_SHOW_PAUSED_NOTIFICATION">settingPausedNotification</string>
     <string name="SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION">settingLockscreenNotification</string>
     <string name="SETTINGS_REFETCH_INTERVAL">settingRefetchInterval</string>
+    <string name="SETTINGS_HW_ACCELERATOR">settingUseHWAccel</string>
 
     <!-- Example General settings -->
     <string name="pref_about">Über diese App</string>
@@ -37,6 +38,9 @@
 
     <string name="pref_title_download_folder">Download - Ordner</string>
     <string name="pref_description_download_folder">Wohin sollen die Offline Beiträge gespeichert werden?</string>
+
+    <string name="pref_title_usehw">Hardwarebeschleunigung</string>
+    <string name="pref_description_usehw">Bei Problemen mit der Audiowiedergabe, deaktivieren (braucht aber etwas mehr Akku)</string>
 
     <string name="pref_title_play_notification">Benachrichtigung - Abspielen</string>
     <string name="pref_description_play_notification">Soll eine Benachrichtigung beim Abspielen angezeigt werden?</string>

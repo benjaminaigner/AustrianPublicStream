@@ -48,7 +48,6 @@ import java.util.GregorianCalendar;
 public class HeaderAdapter implements ListAdapter {
     private int headerPosition = 0;
     private LayoutInflater inflater;
-    private Context context;
 
     public HeaderAdapter(int headerPosition) {
         this.headerPosition = headerPosition;
@@ -94,10 +93,9 @@ public class HeaderAdapter implements ListAdapter {
         return true;
     }
 
-    public void setInflater(LayoutInflater inflater, Context context)
+    public void setInflater(LayoutInflater inflater)
     {
         this.inflater = inflater;
-        this.context = context;
     }
 
     @Override
@@ -126,8 +124,8 @@ public class HeaderAdapter implements ListAdapter {
             case 7:
             case 8:
             case 9:
-                day.add(Calendar.DAY_OF_MONTH,(-headerPosition)+1);
-                dateText = DateFormat.format("dd.MM.yyyy", day).toString();
+                day.add(Calendar.DAY_OF_MONTH,(-headerPosition)+2);
+                dateText = DateFormat.format("cccc, dd.MM.yyyy", day).toString();
                 break;
             default:
                 dateText = "Häää????";

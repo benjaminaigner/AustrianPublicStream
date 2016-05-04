@@ -41,6 +41,10 @@ import java.util.ArrayList;
 
 //TODO: irgendwie wird hier mit der Mediaplayerinstanz geschlampt...
 //TODO: eventuell auch im Fragment speichern?
+//TODO: doku fertig machen
+//TODO: eventuell wifilock nicht nehmen, wenn man offline abspielt?
+//TODO: Log.e/d mit if(D) machen...
+
 
 /**
  * The media service class provides an interface to the VLC player as a service.
@@ -53,27 +57,53 @@ import java.util.ArrayList;
  * In some occasions there might be a problem with the wifi/wakelocks. Should be investigated sometime.
  */
 public class MediaService extends Service implements IVLCVout.Callback, LibVLC.HardwareAccelerationError, Media.EventListener {
+    /** Toggle play and pause of the media player, parameters: none */
     public final static String ACTION_PLAY_PAUSE = "systems.byteswap.action.PLAYPAUSE";
+    /** Play (no toggle) of the media player, parameters: none */
     public final static String ACTION_PLAY = "systems.byteswap.action.PLAY";
+    /** Pause (no toggle) of the media player, parameters: none */
     public final static String ACTION_PAUSE = "systems.byteswap.action.PAUSE";
+    /** Stop (no toggle and no play again, restart with "load") of the media player, parameters: none */
     public final static String ACTION_STOP = "systems.byteswap.action.STOP";
+    /** Set the progress of the media player, parameters: progress from 0.0 to 1.0 (float -> string) */
     public final static String ACTION_SETTIME = "systems.byteswap.action.SETTIME";
+    /** Load an URL or a path (you need to "play" afterwards), parameters: path or URL (string) */
     public final static String ACTION_LOAD = "systems.byteswap.action.LOAD";
 
+    /** state of the mediaplayer: idle, no media loaded. Possible commands:
+     * ACTION_LOAD
+     * */
     public final static String MEDIA_STATE_IDLE = "systems.byteswap.mediastate.IDLE";
-
+    /** state of the mediaplayer: playing, media loaded. Possible commands:
+     * ACTION_LOAD
+     * ACTION_PLAY_PAUSE
+     * ACTION_PAUSE
+     * ACTION_STOP
+     * ACTION_SETTIME
+     * */
     public final static String MEDIA_STATE_PLAYING = "systems.byteswap.mediastate.PLAYING";
+    /** state of the mediaplayer: paused, media loaded. Possible commands:
+     * ACTION_LOAD
+     * ACTION_PLAY_PAUSE
+     * ACTION_PLAY
+     * ACTION_STOP
+     * ACTION_SETTIME
+     * */
     public final static String MEDIA_STATE_PAUSED = "systems.byteswap.mediastate.PAUSED";
+
+    public final static String TAG = "MediaService";
+    public final static boolean D = false;
+    public final static boolean E = true;
 
     private MediaPlayer mMediaPlayer = null;
     private LibVLC libvlc;
     private String mState = MEDIA_STATE_IDLE;
-    private String mStatePrevious = MEDIA_STATE_IDLE;
     private final IBinder mBinder = new LocalBinder();
     private MediaPlayer.EventListener mPlayerListener = new MyPlayerListener(this);
     private WifiManager.WifiLock wifiLock;
     private PowerManager.WakeLock wakeLock;
     private boolean isLive = false;
+    private boolean useHWAcceleration = false;
     PhoneStateListener phoneStateListener;
 
     public MediaService() {
@@ -81,16 +111,30 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
 
     @Override
     public void onCreate() {
+        //create a wifilock to keep the wificonnection up if playing
         wifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "publicStreamWifiLock");
+        //create a wakelock to keep the CPU running, if playing
         wakeLock = ((PowerManager) getSystemService(Context.POWER_SERVICE))
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "publicStreamWakeLock");
     }
 
     @Override
     public void onEvent(Media.Event event) {
-        //TODO: media event listener
+        if(D) Log.d(TAG, event.toString());
     }
+
+    /**
+     * Switch on/off the hardware acceleration of the LibVLC.
+     * Sometimes, the HW acceleration is not playing well, so it can be disabled, e.g. via
+     * the settings
+     *
+     * @param useHWAcceleration true, if you want to use the HW acceleration; false if not. Default: false
+     */
+    public void setUseHWAcceleration(boolean useHWAcceleration) {
+        this.useHWAcceleration = useHWAcceleration;
+    }
+
 
     private class LocalBinder extends Binder {
         MediaService getService() {
@@ -113,35 +157,15 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         return true;
     }
 
-/*
-    @Override
-    public IBinder onBind(Intent intent) {
-        wifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
-                .createWifiLock(WifiManager.WIFI_MODE_FULL, "publicStreamWifiLock");
-        wakeLock = ((PowerManager) getSystemService(Context.POWER_SERVICE))
-                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "publicStreamWakeLock");
-
-        phoneStateListener = new PhoneStateListener() {
-            @Override
-            public void onCallStateChanged(int state, String incomingNumber) {
-                if (state == TelephonyManager.CALL_STATE_RINGING) {
-                    mStatePrevious = mState;
-                    onCommand(ACTION_PAUSE,"");
-                } else if(state == TelephonyManager.CALL_STATE_IDLE) {
-                    if(mStatePrevious.equals(MEDIA_STATE_PLAYING)) onCommand(ACTION_PLAY,"");
-                } else if(state == TelephonyManager.CALL_STATE_OFFHOOK) {
-                    mStatePrevious = mState;
-                    onCommand(ACTION_PAUSE,"");
-                }
-                super.onCallStateChanged(state, incomingNumber);
-            }
-        };
-        //return new LocalBinder<MediaService>(this);
-        return new LocalBinder<MediaService>(this);
-    }
-    */
-
-
+    /**
+     * This is the primary control method for the media player, it is used to control a
+     * running media player. All available commands and their description is available in the
+     * beginning of this class.
+     *
+     * @param command current command to control the media player, see MediaService.ACTION_*
+     * @param parameter Unified parameter, by now it is always the URL/path to load
+     * @return true, if everything went fine; false otherwise (no error codes provided)
+     */
     public boolean onCommand(String command, String parameter) {
         TelephonyManager mgr;
         switch(command) {
@@ -244,7 +268,7 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
 
     @Override
     public void onDestroy() {
-        if(mMediaPlayer != null && this.getState() == MediaService.MEDIA_STATE_IDLE) {
+        if(mMediaPlayer != null && this.getState().equals(MediaService.MEDIA_STATE_IDLE)) {
             try {
                 mMediaPlayer.release();
             } catch (Exception e) {
@@ -268,6 +292,10 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         return this.mState;
     }
 
+    /**
+     * TODO: doku schreiben
+     * @return
+     */
     public int getDuration() {
         switch(mState) {
             case MEDIA_STATE_PLAYING:
@@ -298,15 +326,6 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         }
     }
 
-    //these methods are not used, it works with the internal service methods start-/stopForeground()
-    /*public void startForegroundMedia(int notificationId, Notification notification) {
-        this.startForeground(notificationId,notification);
-    }
-
-    public void stopForegroundMedia() {
-        this.stopForeground(false);
-    }*/
-
     @Override
     public void onNewLayout(IVLCVout ivlcVout, int i, int i1, int i2, int i3, int i4, int i5) {
 
@@ -327,6 +346,10 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
         Toast.makeText(MediaService.this, "HardwareAccelerationError...", Toast.LENGTH_SHORT).show();
     }
 
+    /**
+     * TODO: doku schreiben
+     * @param media
+     */
     private void createPlayer(String media) {
         releasePlayer();
         try {
@@ -351,8 +374,11 @@ public class MediaService extends Service implements IVLCVout.Callback, LibVLC.H
                 m = new Media(libvlc,media);
             }
             m.setEventListener(this);
-            //m.setHWDecoderEnabled(false,false);
             m.addOption(":network-caching=6000");
+            //disable hardware decoder if defined in the settings, this may use more battery, but it works
+            //without audio stuttering on some devices
+
+            m.setHWDecoderEnabled(false,false);
             mMediaPlayer.setMedia(m);
             m.release();
             mMediaPlayer.play();

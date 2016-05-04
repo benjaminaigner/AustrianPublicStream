@@ -76,14 +76,11 @@ public class ORFParser {
     public final static String XML_FILENAME = "filename";
     public final static String XML_DAYLABEL = "daylabel";
 
-    /*public static String ORF_DURATION_URL1 = "http://oe1.orf.at/programm/";
-    public static String ORF_DURATION_URL2 = "/playlist";*/
+    /* debug settings */
+    private final static boolean D = false;
+    private final static String TAG = "ORFParser";
 
     private String fetchURL(URL orfURL) throws IOException {
-        //flag of being in the program list
-        //boolean inList = false;
-
-
         StringBuilder result = new StringBuilder();
         URL url = new URL(orfURL.toString());
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -129,7 +126,7 @@ public class ORFParser {
             }
 
         } catch (JSONException e) {
-            Log.e("ORFParser", "Liste passt nicht...");
+            Log.e(TAG, "Liste passt nicht...");
             return "Liste ist ungültig, bitte beim ORF beschweren...";
         }
         return "";
@@ -194,7 +191,7 @@ public class ORFParser {
             }
             return result;
         } catch (Exception e) {
-            Log.e("PUBLICSTREAM", e.getMessage());
+            Log.e(TAG, "Load offline programs: " + e.getMessage());
             return null;
         }
     }
@@ -212,6 +209,7 @@ public class ORFParser {
                 doc = db.parse(is);
                 root = doc.getDocumentElement();
             } catch (FileNotFoundException e) {
+                Log.e(TAG,"no XML file found, nothing can be deleted from it!");
                 return;
             }
 
@@ -247,7 +245,7 @@ public class ORFParser {
                         File del = new File(fileNameToDelete);
                         //noinspection ResultOfMethodCallIgnored
                         del.delete();
-                        Log.d("FILE", "Removed File: " + fileNameToDelete);
+                        if(D) Log.d(TAG, "Removed File: " + fileNameToDelete);
                     }
                     break;
                 }
@@ -260,7 +258,7 @@ public class ORFParser {
             FileWriter writer = new FileWriter(new File(cacheDir, OFFLINE_XML_NAME));
             transformer.transform(new DOMSource(doc), new StreamResult(writer));
         } catch (Exception e) {
-            Log.e("PUBLICSTREAM","XML write failed: " + e.getMessage());
+            Log.e(TAG,"XML write (delete) failed: " + e.getMessage());
         }
 
     }
@@ -329,7 +327,7 @@ public class ORFParser {
             FileWriter writer = new FileWriter(new File(cacheDir, OFFLINE_XML_NAME));
             transformer.transform(new DOMSource(doc), new StreamResult(writer));
         } catch (Exception e) {
-            Log.e("PUBLICSTREAM","XML write failed: " + e.getMessage());
+            Log.e(TAG,"XML write (add) failed: " + e.getMessage());
         }
     }
 

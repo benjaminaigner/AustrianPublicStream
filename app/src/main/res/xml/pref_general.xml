@@ -46,6 +46,12 @@
         android:defaultValue="true" />
 
     <SwitchPreference
+        android:key="@string/SETTINGS_HW_ACCELERATOR"
+        android:title="@string/pref_title_usehw"
+        android:contentDescription="@string/pref_description_usehw"
+        android:defaultValue="true" />
+
+    <SwitchPreference
         android:key="@string/SETTINGS_SHOW_PAUSED_NOTIFICATION"
         android:title="@string/pref_title_pause_notification"
         android:contentDescription="@string/pref_description_pause_notification"

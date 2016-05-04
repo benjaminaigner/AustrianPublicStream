@@ -40,6 +40,9 @@ import java.util.GregorianCalendar;
  * -) Download icon (not shown if it is an offline program)
  * -) Short title
  * -) Description
+ *
+ * This adapter is used for each day, so every adapter contains one ArrayList of programs
+ * (1 offline page, today's page and 7 days in the past)
  */
 
 public class ProgramExpandableAdapter implements ListAdapter {
@@ -47,9 +50,10 @@ public class ProgramExpandableAdapter implements ListAdapter {
     private LayoutInflater inflater;
     private int groupPosition = 0;
 
+    //list of the programs on the current page
     private ArrayList<ORFParser.ORFProgram> listPrograms;
-    //private ArrayList<ORFParser.ORFProgram> listPrograms[] = new ArrayList[9];
 
+    //is this the offline page or not?
     private boolean isOffline;
 
     public ProgramExpandableAdapter(boolean offline) {
@@ -72,6 +76,7 @@ public class ProgramExpandableAdapter implements ListAdapter {
 
     }
 
+    //return the current count of list items or 0 if the list is null
     @Override
     public int getCount() {
         if(listPrograms != null) {
@@ -97,9 +102,19 @@ public class ProgramExpandableAdapter implements ListAdapter {
         return false;
     }
 
+    /**
+     * Main view creator for each program of this list
+     * @param position Current position in the list
+     * @param convertView previous view, can be re-used
+     * @param parent no idea...
+     * @return the View of the current item
+     */
     @Override
     public View getView(final int position, View convertView, ViewGroup parent) {
+        //finalize a copy of the array list
         final ArrayList<ORFParser.ORFProgram> child;
+
+        //either use the current list or create a new one
         if(listPrograms != null) {
             child = listPrograms;
         } else {
@@ -108,17 +123,24 @@ public class ProgramExpandableAdapter implements ListAdapter {
 
         TextView textView;
 
+        //if the previous view cannot be used, create a new one from layout XML
         if (convertView == null) {
             convertView = inflater.inflate(R.layout.child_view, null);
         }
 
-        // get the textView/ImageView reference and set the title/info
+        // get the textView/ImageView reference and set the title/info (first line)
         textView = (TextView) convertView.findViewById(R.id.textViewTitle);
+        // find the download button
         ImageView imageViewDownload = (ImageView) convertView.findViewById(R.id.childDownloadImage);
+
+        //either this is the offline list or not
         if(isOffline) {
+            //if this is the offline list, write the day of the past program and the short title to the header
             textView.setText(child.get(position).dayLabel + " - " + child.get(position).shortTitle);
+            //and also make the download button invisible (makes no sense to download it again)
             imageViewDownload.setVisibility(View.INVISIBLE);
         } else {
+            //if this is the remote list, show the original on-air time and the short title
             textView.setText(child.get(position).time + " - " + child.get(position).shortTitle);
 
             // set the ClickListener to handle the click events on the download button
@@ -131,34 +153,44 @@ public class ProgramExpandableAdapter implements ListAdapter {
                     ((MainActivity)context).programDownloadClickListener(child.get(position), DateFormat.format("dd.MM.yyyy", today).toString());
                 }
             });
+            //show the download button
             imageViewDownload.setVisibility(View.VISIBLE);
         }
+
+        //always: write the info text for each program (offline and remote)
         textView = (TextView) convertView.findViewById(R.id.textViewChildInfo);
         textView.setText(child.get(position).info);
 
-        // set the ClickListener to handle the click event on child item
+        // set the ClickListener to handle the click event on child item (we will play the selected
+        // program via the MainActivity)
         convertView.setOnClickListener(new View.OnClickListener() {
-
             @Override
             public void onClick(View view) {
                 ((MainActivity)context).programClickListener(child.get(position));
             }
         });
 
-        convertView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                //TODO: schauen ob 1 (vorher war 8) hier passt, wegen der verschiebung...
-                if(groupPosition == 1) {
-                    ((MainActivity)context).programLongClickListener(child.get(position), true, "");
-                } else {
+        //either use the "delete" handler for longclicks (offline programs)
+        //or the "download" handler (remote programs)
+        if(isOffline) {
+            convertView.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    ((MainActivity) context).programLongClickListener(child.get(position), true, "");
+                    return true;
+                }
+            });
+        } else {
+            convertView.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
                     //Create calendar object (today)
                     Calendar today = new GregorianCalendar();
-                    ((MainActivity)context).programLongClickListener(child.get(position), false, DateFormat.format("dd.MM.yyyy", today).toString());
+                    ((MainActivity) context).programLongClickListener(child.get(position), false, DateFormat.format("dd.MM.yyyy", today).toString());
+                    return true;
                 }
-                return true;
-            }
-        });
+            });
+        }
         return convertView;
     }
 
@@ -187,6 +219,7 @@ public class ProgramExpandableAdapter implements ListAdapter {
         return true;
     }
 
+    //save the program list to this adapter instance
     public void setListPrograms(ArrayList<ORFParser.ORFProgram> listPrograms) {
         this.listPrograms = listPrograms;
     }

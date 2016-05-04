@@ -27,6 +27,11 @@ version = getVersionString()
 android {
     compileSdkVersion 23
     buildToolsVersion "23.0.0"
+    defaultConfig {
+        minSdkVersion 15
+    }
+    productFlavors {
+    }
 }
 dependencies {
     compile 'com.android.support:support-v4:23.1.1'
