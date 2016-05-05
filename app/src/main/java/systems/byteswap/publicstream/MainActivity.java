@@ -54,7 +54,6 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
@@ -111,8 +110,14 @@ public class MainActivity extends AppCompatActivity {
     int currentTime;
     int currentDuration;
 
+    /** Storage provider to access the SQLite DB */
+    public static StorageProvider store;
+
     static ProgramExpandableAdapter adapter;
     static HeaderAdapter headerAdapter;
+
+    ORFParser.ORFProgram currentProgram;
+    int currentPosition;
 
     boolean useHWAccel = true;
 
@@ -228,6 +233,8 @@ public class MainActivity extends AppCompatActivity {
         mConnection = dataFragment.getMediaConnection();
         mMediaServiceIntent = dataFragment.getMediaServiceIntent();
         currentDownloadNotificationId = dataFragment.getCurrentDownloadNotificationId();
+        currentPosition = dataFragment.getCurrentPosition();
+        currentProgram = dataFragment.getCurrentProgram();
 
         //if something went wrong, restart the connection...
         if(mMediaServiceIntent == null || mConnection == null || mService == null) {
@@ -263,6 +270,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
+
+        store = new StorageProvider(this);
 
         // find the retained fragment on activity restarts
         FragmentManager fm = getFragmentManager();
@@ -402,7 +411,9 @@ public class MainActivity extends AppCompatActivity {
     /** callback listener for short clicks
      * Used to play the selected programs
      */
-    public void programClickListener(ORFParser.ORFProgram child) {
+    public void programClickListener(ORFParser.ORFProgram child, int position) {
+        currentProgram = child;
+        currentPosition = position;
         TextView streamtext = (TextView) findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
         if(dataFragment != null) dataFragment.setTextPlayButton(child.title);
@@ -419,7 +430,7 @@ public class MainActivity extends AppCompatActivity {
      * Used to delete an already loaded program
      * or download a remote one
     */
-    public void programLongClickListener(final ORFParser.ORFProgram child, boolean toDelete, String datum) {
+    public void programLongClickListener(final ORFParser.ORFProgram child, boolean toDelete) {
         if(toDelete) {
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setMessage("Wollen Sie den Beitrag " + child.shortTitle + " wirklich löschen?")
@@ -427,12 +438,10 @@ public class MainActivity extends AppCompatActivity {
             builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int id) {
                     //delete the list entry & update the list
-                    ORFParser parser = new ORFParser();
-
-                    parser.removeProgramOffline(child, getBaseContext().getExternalCacheDir());
+                    store.deleteOffline(String.valueOf(child.id));
                     Toast.makeText(MainActivity.this, "Beitrag gelöscht", Toast.LENGTH_SHORT).show();
                     //Update the list
-                    ArrayList<ORFParser.ORFProgram> temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+                    ArrayList<ORFParser.ORFProgram> temp = store.getOffline();
                     if(temp != null) {
                         programListOffline = temp;
                         dataFragment.setProgramListOffline(temp);
@@ -455,7 +464,7 @@ public class MainActivity extends AppCompatActivity {
             builder.create().show();
 
         } else {
-            programDownloadClickListener(child, datum);
+            programDownloadClickListener(child);
         }
     }
 
@@ -555,8 +564,8 @@ public class MainActivity extends AppCompatActivity {
                     });
                     //Finally: add the downloaded program to the offline list and update the UI...
                     child.url = folder + "/" + fileName;
-                    parser.addProgramOffline(child, getBaseContext().getExternalCacheDir());
-                    programListOffline = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+                    store.addOffline(child);
+                    programListOffline = store.getOffline();
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -607,7 +616,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /** listener for download item clicks **/
-    public void programDownloadClickListener(final ORFParser.ORFProgram child, final String datum) {
+    public void programDownloadClickListener(final ORFParser.ORFProgram child) {
         Toast.makeText(getBaseContext(), "Download: " + child.shortTitle, Toast.LENGTH_SHORT).show();
         //increment the download notification id for each download (it is reset if the app is completely closed)
         currentDownloadNotificationId++;
@@ -655,9 +664,7 @@ public class MainActivity extends AppCompatActivity {
     private void TimerMethodRemoteList() {
         //fetch all offline programs first
 
-        ArrayList<ORFParser.ORFProgram> temp;
-        ORFParser parser = new ORFParser();
-        temp = parser.getProgramsOffline(getBaseContext().getExternalCacheDir());
+        ArrayList<ORFParser.ORFProgram> temp = store.getOffline();
         if(temp != null) {
             if (!temp.equals(programListOffline)) {
                 programListOffline = temp;
@@ -691,7 +698,7 @@ public class MainActivity extends AppCompatActivity {
                 ORFParser parser = new ORFParser();
 
                 ArrayList<ORFParser.ORFProgram> temp;
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if(temp != null && !temp.equals(programListToday)) {
                     programListToday = temp;
                     try {
@@ -726,7 +733,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ORFParser.ORFProgram> temp;
 
                 today.add(Calendar.DAY_OF_MONTH,-1);
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if(temp != null && !temp.equals(programListTodayMinus1)) {
                     programListTodayMinus1 = temp;
                     try {
@@ -760,7 +767,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ORFParser.ORFProgram> temp;
 
                 today.add(Calendar.DAY_OF_MONTH,-2);
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if(temp != null && !temp.equals(programListTodayMinus2)) {
                     programListTodayMinus2 = temp;
                     try {
@@ -794,7 +801,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ORFParser.ORFProgram> temp;
 
                 today.add(Calendar.DAY_OF_MONTH,-3);
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if(temp != null && !temp.equals(programListTodayMinus3)) {
                     programListTodayMinus3 = temp;
                     try {
@@ -828,7 +835,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ORFParser.ORFProgram> temp;
 
                 today.add(Calendar.DAY_OF_MONTH,-4);
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if(temp != null && !temp.equals(programListTodayMinus4)) {
                     programListTodayMinus4 = temp;
                     try {
@@ -862,7 +869,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ORFParser.ORFProgram> temp;
 
                 today.add(Calendar.DAY_OF_MONTH,-5);
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if(temp != null && !temp.equals(programListTodayMinus5)) {
                     programListTodayMinus5 = temp;
                     try {
@@ -896,7 +903,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ORFParser.ORFProgram> temp;
 
                 today.add(Calendar.DAY_OF_MONTH, -6);
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if (temp != null && !temp.equals(programListTodayMinus6)) {
                     programListTodayMinus6 = temp;
                     try {
@@ -930,7 +937,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ORFParser.ORFProgram> temp;
 
                 today.add(Calendar.DAY_OF_MONTH,-7);
-                temp = parser.getProgramsForDay(today.getTime());
+                temp = parser.getProgramsForDay(today.getTime(),store);
                 if(temp != null && !temp.equals(programListTodayMinus7)) {
                     programListTodayMinus7 = temp;
                     try {
@@ -966,9 +973,8 @@ public class MainActivity extends AppCompatActivity {
         @TargetApi(Build.VERSION_CODES.LOLLIPOP)
         @Override
         public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-            if (action == null)
-                return;
+            //final String action = intent.getAction();
+            //if (action == null)
         }
     } : null;
 
@@ -1042,6 +1048,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("PUBLICSTREAM","Progressbar: Div by 0");
                 }
             } else {
+                currentProgram = null;
                 seekbar.setProgress(0);
             }
 
@@ -1052,8 +1059,41 @@ public class MainActivity extends AppCompatActivity {
                     mService.stopForeground(true);
                     updateScreenNotification(NOTIFICATION_COMMAND_CANCEL, "");
                     isPausedNotified = false;
-                    Log.i("NOTE","STOPPED -> cancel");
+                    Log.i("NOTE", "STOPPED -> cancel");
                     handler.removeCallbacks(mRunnableSeek);
+
+                    //if we reached this block either the current program was completely played
+                    //or we are at the activity start-up
+                    //so we need to store the current program as "listened" in following places:
+                    //-) currentProgram
+                    //-) StorageProvider
+                    //-) The containing ArrayList of programs
+                    if(currentProgram != null) {
+                        store.setListened(String.valueOf(currentProgram.id));
+                        currentProgram.isListened = true;
+
+                        if (programListOffline.get(currentPosition).id == currentProgram.id)
+                            programListOffline.set(currentPosition, currentProgram);
+                        if (programListToday.get(currentPosition).id == currentProgram.id)
+                            programListToday.set(currentPosition, currentProgram);
+                        if (programListTodayMinus1.get(currentPosition).id == currentProgram.id)
+                            programListTodayMinus1.set(currentPosition, currentProgram);
+                        if (programListTodayMinus2.get(currentPosition).id == currentProgram.id)
+                            programListTodayMinus2.set(currentPosition, currentProgram);
+                        if (programListTodayMinus3.get(currentPosition).id == currentProgram.id)
+                            programListTodayMinus3.set(currentPosition, currentProgram);
+                        if (programListTodayMinus4.get(currentPosition).id == currentProgram.id)
+                            programListTodayMinus4.set(currentPosition, currentProgram);
+                        if (programListTodayMinus5.get(currentPosition).id == currentProgram.id)
+                            programListTodayMinus5.set(currentPosition, currentProgram);
+                        if (programListTodayMinus6.get(currentPosition).id == currentProgram.id)
+                            programListTodayMinus6.set(currentPosition, currentProgram);
+                        if (programListTodayMinus7.get(currentPosition).id == currentProgram.id)
+                            programListTodayMinus7.set(currentPosition, currentProgram);
+                        ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
+                        mViewPager.getAdapter().notifyDataSetChanged();
+                        currentProgram = null;
+                    }
                     break;
                 case -2:
                     mService.stopForeground(true);

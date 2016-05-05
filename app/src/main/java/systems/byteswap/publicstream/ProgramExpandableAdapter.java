@@ -21,7 +21,6 @@ package systems.byteswap.publicstream;
 
 import android.content.Context;
 import android.database.DataSetObserver;
-import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -150,11 +149,17 @@ public class ProgramExpandableAdapter implements ListAdapter {
                     //Create calendar object (today)
                     Calendar today = new GregorianCalendar();
                     today.add(Calendar.DAY_OF_MONTH, -groupPosition);
-                    ((MainActivity)context).programDownloadClickListener(child.get(position), DateFormat.format("dd.MM.yyyy", today).toString());
+                    ((MainActivity)context).programDownloadClickListener(child.get(position));
                 }
             });
             //show the download button
             imageViewDownload.setVisibility(View.VISIBLE);
+        }
+
+        //if this program is already listened, show the symbol
+        if(child.get(position).isListened) {
+            ImageView imageListened = (ImageView)convertView.findViewById(R.id.childListenedImage);
+            imageListened.setVisibility(View.VISIBLE);
         }
 
         //always: write the info text for each program (offline and remote)
@@ -166,7 +171,7 @@ public class ProgramExpandableAdapter implements ListAdapter {
         convertView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                ((MainActivity)context).programClickListener(child.get(position));
+                ((MainActivity)context).programClickListener(child.get(position), position);
             }
         });
 
@@ -176,7 +181,7 @@ public class ProgramExpandableAdapter implements ListAdapter {
             convertView.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
-                    ((MainActivity) context).programLongClickListener(child.get(position), true, "");
+                    ((MainActivity) context).programLongClickListener(child.get(position), true);
                     return true;
                 }
             });
@@ -186,7 +191,7 @@ public class ProgramExpandableAdapter implements ListAdapter {
                 public boolean onLongClick(View v) {
                     //Create calendar object (today)
                     Calendar today = new GregorianCalendar();
-                    ((MainActivity) context).programLongClickListener(child.get(position), false, DateFormat.format("dd.MM.yyyy", today).toString());
+                    ((MainActivity) context).programLongClickListener(child.get(position), false);
                     return true;
                 }
             });

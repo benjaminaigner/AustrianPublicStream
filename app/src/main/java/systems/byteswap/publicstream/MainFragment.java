@@ -55,6 +55,8 @@ public class MainFragment extends Fragment {
     private int currentTime;
     private int currentDuration;
     private int currentDownloadNotificationId;
+    private int currentPosition;
+    private ORFParser.ORFProgram currentProgram;
 
     private String textPlayButton;
 
@@ -210,5 +212,21 @@ public class MainFragment extends Fragment {
 
     public void setCurrentDownloadNotificationId(int currentDownloadNotificationId) {
         this.currentDownloadNotificationId = currentDownloadNotificationId;
+    }
+
+    public ORFParser.ORFProgram getCurrentProgram() {
+        return currentProgram;
+    }
+
+    public void setCurrentProgram(ORFParser.ORFProgram currentProgram) {
+        this.currentProgram = currentProgram;
+    }
+
+    public int getCurrentPosition() {
+        return currentPosition;
+    }
+
+    public void setCurrentPosition(int currentPosition) {
+        this.currentPosition = currentPosition;
     }
 }

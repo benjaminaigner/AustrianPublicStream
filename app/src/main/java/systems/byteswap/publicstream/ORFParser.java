@@ -80,6 +80,8 @@ public class ORFParser {
     private final static boolean D = false;
     private final static String TAG = "ORFParser";
 
+    private StorageProvider store;
+
     private String fetchURL(URL orfURL) throws IOException {
         StringBuilder result = new StringBuilder();
         URL url = new URL(orfURL.toString());
@@ -119,7 +121,9 @@ public class ORFParser {
                 currentProgram.info = (String)programItems.get("info");
                 currentProgram.url = (String)programItems.get("url_stream");
                 currentProgram.dayLabel = (String)programItems.get("day_label");
-
+                if(store != null) {
+                    currentProgram.isListened = store.isListened(String.valueOf(currentProgram.id));
+                }
 
                 //add temp program to list
                 programList.add(currentProgram);
@@ -132,9 +136,10 @@ public class ORFParser {
         return "";
     }
 
-    public ArrayList<ORFProgram> getProgramsForDay(Date day) {
+    public ArrayList<ORFProgram> getProgramsForDay(Date day, StorageProvider store) {
         Calendar dayCalendar = new GregorianCalendar();
         dayCalendar.setTime(day);
+        this.store = store;
 
         try {
             String month = String.format("%1$02d", dayCalendar.get(Calendar.MONTH)+1);
@@ -359,5 +364,6 @@ public class ORFParser {
         public String info;
         public String url;
         public String dayLabel;
+        public boolean isListened;
     }
 }
