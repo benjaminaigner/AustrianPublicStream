@@ -50,8 +50,6 @@ public class MainFragment extends Fragment {
     private MediaService mService;
     private ServiceConnection mConnection;
     private Intent mServiceIntent;
-    private ProgramExpandableAdapter adapter;
-    private ExpandableListView expandableList;
     private int currentTime;
     private int currentDuration;
     private int currentDownloadNotificationId;
@@ -61,7 +59,7 @@ public class MainFragment extends Fragment {
     private String textPlayButton;
 
 
-    // this method is only called once for this fragment
+    // this method is only called once for this fragment, setting its retain state to true
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -165,29 +163,12 @@ public class MainFragment extends Fragment {
     public void setMediaServiceIntent(Intent mServiceIntent) {
         this.mServiceIntent = mServiceIntent;
     }
-
-    public void setExpandableList(ExpandableListView expandableList) {
-        this.expandableList = expandableList;
-    }
-
-    public void setAdapter(ProgramExpandableAdapter adapter) {
-        this.adapter = adapter;
-    }
-
     public String getTextPlayButton() {
         return textPlayButton;
     }
 
     public void setTextPlayButton(String textPlayButton) {
         this.textPlayButton = textPlayButton;
-    }
-
-    public ProgramExpandableAdapter getAdapter() {
-        return adapter;
-    }
-
-    public ExpandableListView getExpandableList() {
-        return expandableList;
     }
 
     public int getCurrentDuration() {

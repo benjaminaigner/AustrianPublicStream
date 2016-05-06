@@ -413,7 +413,9 @@ public class MainActivity extends AppCompatActivity {
      */
     public void programClickListener(ORFParser.ORFProgram child, int position) {
         currentProgram = child;
+        dataFragment.setCurrentProgram(child);
         currentPosition = position;
+        dataFragment.setCurrentPosition(position);
         TextView streamtext = (TextView) findViewById(R.id.textViewCurrentStream);
         streamtext.setText(child.title);
         if(dataFragment != null) dataFragment.setTextPlayButton(child.title);
