@@ -24,17 +24,7 @@ import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -43,14 +33,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 
 /**
  * ORF JSON Parser
@@ -61,30 +43,33 @@ import javax.xml.transform.stream.StreamResult;
  * In addition this class provides the offline programs (accessed via an XML file)
  */
 public class ORFParser {
+    /** array list of this Parser instance, containing one day */
     private ArrayList<ORFProgram> programList;
+    /** base URL, where the programs are stored (the JSON list */
     public final static String ORF_FULL_BASE_URL = "http://oe1.orf.at/programm/konsole/tag/";
+    /** live stream URL */
     public final static String ORF_LIVE_URL = "http://mp3stream3.apasf.apa.at:8000/;stream.mp3";
-    public final static String OFFLINE_XML_NAME = "oe1_offline.xml";
-
-    public final static String XML_PROGRAM = "program";
-    public final static String XML_ID = "id";
-    public final static String XML_TIME = "time";
-    public final static String XML_TITLE = "title";
-    public final static String XML_SHORTTITLE = "shorttitle";
-    public final static String XML_INFO = "info";
-    public final static String XML_URL = "url";
-    public final static String XML_FILENAME = "filename";
-    public final static String XML_DAYLABEL = "daylabel";
 
     /* debug settings */
     private final static boolean D = false;
     private final static String TAG = "ORFParser";
 
+    /** storage provider to access the SQLite DB */
     private StorageProvider store;
 
+    /**
+     * This method fetches the JSON string from a defined URL (base URL + day string)
+     * The combined lines are handled to parse() and the result of the parser is returned.
+     * If nothing went wrong, the programList is filled with the parsed ORFPrograms
+     *
+     * @param orfURL Full URL to fetch
+     * @return result of the parse operation, "" if everything went fine, the error string otherwise
+     * @throws IOException Is thrown if there are problems regarding the HTTP connection
+     */
     private String fetchURL(URL orfURL) throws IOException {
         StringBuilder result = new StringBuilder();
         URL url = new URL(orfURL.toString());
+        if(D) Log.d(TAG,"HTTP fetch of URL " + orfURL.toString());
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -96,6 +81,14 @@ public class ORFParser {
         return this.parse(result.toString());
     }
 
+    /**
+     * This method is used to parse the JSON string, received from the HTTP server, into
+     * the object representation (ORFParser.ORFProgram).
+     * In addition, the DB is fetched for the listened flag of this program
+     *
+     * @param s JSON string to be parsed (handled by fetchURL)
+     * @return Result string, "" if everything went fine, the error message otherwise
+     */
     private String parse(String s) {
         //recreate program list each time
         programList = new ArrayList<>();
@@ -128,6 +121,7 @@ public class ORFParser {
                 //add temp program to list
                 programList.add(currentProgram);
             }
+            if(D) Log.d(TAG,"Parsed " + programList.size() + " remote programs");
 
         } catch (JSONException e) {
             Log.e(TAG, "Liste passt nicht...");
@@ -136,11 +130,20 @@ public class ORFParser {
         return "";
     }
 
+    /**
+     * This method is used to fetch the available programs for one day.
+     * In addition, the storage provider is necessary to enable the search for the listened flag
+     *
+     * @param day The day which should be fetched (available: today minus 7 days)
+     * @param store DB connector
+     * @return The array list of all available programs for this day
+     */
     public ArrayList<ORFProgram> getProgramsForDay(Date day, StorageProvider store) {
         Calendar dayCalendar = new GregorianCalendar();
         dayCalendar.setTime(day);
         this.store = store;
 
+        if(D) Log.d(TAG,"Fetching/parsing for day: " + day.toString());
         try {
             String month = String.format("%1$02d", dayCalendar.get(Calendar.MONTH)+1);
             String daynr = String.format("%1$02d", dayCalendar.get(Calendar.DAY_OF_MONTH));
@@ -153,217 +156,25 @@ public class ORFParser {
         return this.programList;
     }
 
-    public ArrayList<ORFProgram> getProgramsOffline(File cacheDir) {
-        ArrayList<ORFProgram> result = new ArrayList<>();
-        //ArrayList<ORFProgram> result = new ArrayList<ORFProgram>();
-
-        //open the XML file
-        try {
-            Document doc;
-            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            InputSource is = new InputSource();
-            is.setCharacterStream(new FileReader(new File(cacheDir, OFFLINE_XML_NAME)));
-            doc = db.parse(is);
-
-            NodeList nl = doc.getElementsByTagName(XML_PROGRAM);
-
-            //iterate all "program" nodes
-            for (int i = nl.getLength() - 1 ; i >= 0; i--) {
-                Element e = (Element) nl.item(i);
-                //fetch all XML tags
-                String daylabel = ORFParser.getValue(e, XML_DAYLABEL);
-                //String fileName = ORFParser.getValue(e, XML_FILENAME);
-                String url = ORFParser.getValue(e, XML_URL);
-                String info = ORFParser.getValue(e, XML_INFO);
-                String title = ORFParser.getValue(e, XML_TITLE);
-                String time = ORFParser.getValue(e, XML_TIME);
-                String id = ORFParser.getValue(e, XML_ID);
-                String shortTitle = ORFParser.getValue(e, XML_SHORTTITLE);
-
-                File file = new File(url);
-                if (file.exists()) {
-                    ORFProgram temp = new ORFProgram();
-                    temp.dayLabel = daylabel;
-                    temp.url = url;
-                    temp.info = info;
-                    temp.title = title;
-                    temp.shortTitle = shortTitle;
-                    temp.time = time;
-                    temp.id = Integer.valueOf(id);
-                    result.add(temp);
-                }
-            }
-            return result;
-        } catch (Exception e) {
-            Log.e(TAG, "Load offline programs: " + e.getMessage());
-            return null;
-        }
-    }
-
-    public void removeProgramOffline(ORFProgram program, File cacheDir) {
-        try {
-            //open the XML file
-            Document doc;
-            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Element root;
-            try {
-                InputSource is = new InputSource();
-                is.setCharacterStream(new FileReader(new File(cacheDir, OFFLINE_XML_NAME)));
-                doc = db.parse(is);
-                root = doc.getDocumentElement();
-            } catch (FileNotFoundException e) {
-                Log.e(TAG,"no XML file found, nothing can be deleted from it!");
-                return;
-            }
-
-            NodeList currentList = root.getElementsByTagName(XML_PROGRAM);
-            String fileNameToDelete = "";
-
-            for(int i = 0; i<currentList.getLength(); i++) {
-                Node deleteProgram = currentList.item(i);
-                NodeList deleteNodeList = deleteProgram.getChildNodes();
-                boolean delete = false;
-
-                for(int j = 0; j<deleteNodeList.getLength(); j++) {
-                    switch (deleteNodeList.item(j).getNodeName()) {
-                        case XML_ID:
-                            delete = deleteNodeList.item(j).getFirstChild().getNodeValue().equals(String.valueOf(program.id));
-                            break;
-                        case XML_DAYLABEL:
-                            delete = deleteNodeList.item(j).getFirstChild().getNodeValue().equals(String.valueOf(program.dayLabel));
-                            break;
-
-                        case XML_FILENAME:
-                            fileNameToDelete = deleteNodeList.item(j).getFirstChild().getNodeValue();
-                        //only compare 2 fields (id and day, should be enough)
-                        default:
-                            break;
-                    }
-                }
-
-                if(delete)
-                {
-                    root.removeChild(deleteProgram);
-                    if(!fileNameToDelete.equals("")) {
-                        File del = new File(fileNameToDelete);
-                        //noinspection ResultOfMethodCallIgnored
-                        del.delete();
-                        if(D) Log.d(TAG, "Removed File: " + fileNameToDelete);
-                    }
-                    break;
-                }
-            }
-
-            //Rewrite the XML to the external storage (cache)...
-            TransformerFactory tf = TransformerFactory.newInstance();
-            Transformer transformer = tf.newTransformer();
-            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-            FileWriter writer = new FileWriter(new File(cacheDir, OFFLINE_XML_NAME));
-            transformer.transform(new DOMSource(doc), new StreamResult(writer));
-        } catch (Exception e) {
-            Log.e(TAG,"XML write (delete) failed: " + e.getMessage());
-        }
-
-    }
-
-    public void addProgramOffline(ORFProgram program, File cacheDir) {
-
-        try {
-            //open the XML file
-            Document doc;
-            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Element root;
-            try {
-                InputSource is = new InputSource();
-                is.setCharacterStream(new FileReader(new File(cacheDir, OFFLINE_XML_NAME)));
-                doc = db.parse(is);
-                root = doc.getDocumentElement();
-            } catch (FileNotFoundException e) {
-                doc = db.newDocument();
-                root = doc.createElement("root");
-                doc.appendChild(root);
-            }
-
-            //Add new program
-            Element newProgram = doc.createElement(XML_PROGRAM);
-
-            //Add all XML tags to the new program
-            Element title = doc.createElement(XML_TITLE);
-            title.appendChild(doc.createTextNode(program.title));
-            newProgram.appendChild(title);
-
-            Element shorttitle = doc.createElement(XML_SHORTTITLE);
-            shorttitle.appendChild(doc.createTextNode(program.shortTitle));
-            newProgram.appendChild(shorttitle);
-
-            Element id = doc.createElement(XML_ID);
-            id.appendChild(doc.createTextNode(String.valueOf(program.id)));
-            newProgram.appendChild(id);
-
-            Element time = doc.createElement(XML_TIME);
-            time.appendChild(doc.createTextNode(program.time));
-            newProgram.appendChild(time);
-
-            Element url = doc.createElement(XML_URL);
-            url.appendChild(doc.createTextNode(program.url));
-            newProgram.appendChild(url);
-
-            Element info = doc.createElement(XML_INFO);
-            info.appendChild(doc.createTextNode(program.info));
-            newProgram.appendChild(info);
-
-            Element filename = doc.createElement(XML_FILENAME);
-            filename.appendChild(doc.createTextNode(program.url));
-            newProgram.appendChild(filename);
-
-            Element daylabel = doc.createElement(XML_DAYLABEL);
-            daylabel.appendChild(doc.createTextNode(program.dayLabel));
-            newProgram.appendChild(daylabel);
-
-            root.appendChild(newProgram);
-
-            //Rewrite the XML to the external storage (cache)...
-            TransformerFactory tf = TransformerFactory.newInstance();
-            Transformer transformer = tf.newTransformer();
-            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-            FileWriter writer = new FileWriter(new File(cacheDir, OFFLINE_XML_NAME));
-            transformer.transform(new DOMSource(doc), new StreamResult(writer));
-        } catch (Exception e) {
-            Log.e(TAG,"XML write (add) failed: " + e.getMessage());
-        }
-    }
-
-    private static String getValue(Element item, String str) {
-        NodeList n = item.getElementsByTagName(str);
-        return ORFParser.getElementValue(n.item(0));
-    }
-
-    private static String getElementValue( Node elem ) {
-        Node child;
-        if( elem != null){
-            if (elem.hasChildNodes()){
-                for( child = elem.getFirstChild(); child != null; child = child.getNextSibling() ){
-                    if( child.getNodeType() == Node.TEXT_NODE  ){
-                        return child.getNodeValue();
-                    }
-                }
-            }
-        }
-        return "";
-    }
-
+    /**
+     * Static class as representation of an ORF program.
+     */
     public static class ORFProgram {
+        //unique id, provided by the remote list
         public int id;
-        //public String length;
+        //original time, when it was broadcasted
         public String time;
+        //full title
         public String title;
+        //short title
         public String shortTitle;
+        //program info
         public String info;
+        //URL (either the remote one, or the local one for offline programs)
         public String url;
+        //label of the day (not used, just provided by the remote list)
         public String dayLabel;
+        //flag of the listened state, true if the program was listened to the end
         public boolean isListened;
     }
 }
