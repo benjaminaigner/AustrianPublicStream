@@ -115,7 +115,8 @@ public class ORFParser {
                 currentProgram.url = (String)programItems.get("url_stream");
                 currentProgram.dayLabel = (String)programItems.get("day_label");
                 if(store != null) {
-                    currentProgram.isListened = store.isListened(String.valueOf(currentProgram.id));
+                    currentProgram.isListened = store.isListened(String.valueOf(currentProgram.id), currentProgram.dayLabel);
+
                 }
 
                 //add temp program to list

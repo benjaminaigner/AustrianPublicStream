@@ -54,6 +54,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
 
         mContext = this;
         Preference filePicker = findPreference("loadAbout");
+        //add the "about" text to the preferences
         filePicker.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {

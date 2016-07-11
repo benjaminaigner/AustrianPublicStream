@@ -30,6 +30,16 @@
         android:maxLines="1" />
 
     <EditTextPreference
+        android:key="@string/SETTINGS_DOWNLOADNOTECANCEL"
+        android:title="@string/pref_title_download_note_cancel"
+        android:contentDescription="@string/pref_description_download_note_cancel"
+        android:defaultValue="30"
+        android:selectAllOnFocus="true"
+        android:inputType="numberDecimal"
+        android:singleLine="true"
+        android:maxLines="1" />
+
+    <EditTextPreference
         android:key="@string/SETTINGS_DOWNLOADFOLDER"
         android:title="@string/pref_title_download_folder"
         android:contentDescription="@string/pref_description_download_folder"

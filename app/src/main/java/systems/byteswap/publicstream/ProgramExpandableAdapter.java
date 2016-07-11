@@ -21,6 +21,7 @@ package systems.byteswap.publicstream;
 
 import android.content.Context;
 import android.database.DataSetObserver;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -45,6 +46,10 @@ import java.util.GregorianCalendar;
  */
 
 public class ProgramExpandableAdapter implements ListAdapter {
+    /* debug settings */
+    private final static boolean D = true;
+    private final static String TAG = "Adapter";
+
     private Context context;
     private LayoutInflater inflater;
     private int groupPosition = 0;
@@ -55,10 +60,12 @@ public class ProgramExpandableAdapter implements ListAdapter {
     //is this the offline page or not?
     private boolean isOffline;
 
+    //CTOR with offline flag, determining if this instance is the offline list or not
     public ProgramExpandableAdapter(boolean offline) {
         this.isOffline = offline;
     }
 
+    //set inflator and context instance, otherwise it's not possible to inflate a missing convertview
     public void setInflater(LayoutInflater inflater, Context context)
     {
         this.inflater = inflater;
@@ -157,9 +164,15 @@ public class ProgramExpandableAdapter implements ListAdapter {
         }
 
         //if this program is already listened, show the symbol
+        ImageView imageListened = (ImageView)convertView.findViewById(R.id.childListenedImage);
         if(child.get(position).isListened) {
-            ImageView imageListened = (ImageView)convertView.findViewById(R.id.childListenedImage);
+            if(D) Log.d(TAG,"isListened: " + position + ":" + child.get(position).shortTitle + "," + child.get(position).id
+                    + "," + child.get(position).dayLabel + "," + child.get(position).time);
             imageListened.setVisibility(View.VISIBLE);
+        } else {
+            imageListened.setVisibility(View.INVISIBLE);
+            if(D) Log.d(TAG,"notListened: " + position + ":" + child.get(position).shortTitle + "," + child.get(position).id
+                    + "," + child.get(position).dayLabel + "," + child.get(position).time);
         }
 
         //always: write the info text for each program (offline and remote)
@@ -189,8 +202,6 @@ public class ProgramExpandableAdapter implements ListAdapter {
             convertView.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
-                    //Create calendar object (today)
-                    Calendar today = new GregorianCalendar();
                     ((MainActivity) context).programLongClickListener(child.get(position), false);
                     return true;
                 }

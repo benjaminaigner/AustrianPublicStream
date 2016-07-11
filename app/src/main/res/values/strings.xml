@@ -29,6 +29,7 @@
     <string name="SETTINGS_SHOW_LOCKSCREEN_NOTIFICATION">settingLockscreenNotification</string>
     <string name="SETTINGS_REFETCH_INTERVAL">settingRefetchInterval</string>
     <string name="SETTINGS_HW_ACCELERATOR">settingUseHWAccel</string>
+    <string name="SETTINGS_DOWNLOADNOTECANCEL">settingsDownloadNotificationCancel</string>
 
     <!-- Example General settings -->
     <string name="pref_about">Über diese App</string>
@@ -50,6 +51,10 @@
 
     <string name="pref_title_lockscreen_notification">Benachrichtigung - Sperrbildschirm</string>
     <string name="pref_description_lockscreen_notification">Soll eine Benachrichtigung am Sperrbildschirm angezeigt werden? TBD; noch nicht implementiert</string>
+
+
+    <string name="pref_title_download_note_cancel">Dauer der Downloadbenachrichtigung</string>
+    <string name="pref_description_download_note_cancel">Wieviele Sekunden soll die Benachrichtigung bestehen bleiben nachdme der Download fertig ist?</string>
 
     <!-- about dialog -->
     <string name="about_title">Über diese App</string>

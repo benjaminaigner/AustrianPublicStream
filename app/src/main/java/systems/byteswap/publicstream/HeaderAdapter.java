@@ -30,7 +30,6 @@
 
 package systems.byteswap.publicstream;
 
-import android.content.Context;
 import android.database.DataSetObserver;
 import android.text.format.DateFormat;
 import android.view.LayoutInflater;
@@ -100,13 +99,16 @@ public class HeaderAdapter implements ListAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
+        //if the convertview is not available, inflate a new one
         if(convertView == null) {
             convertView = inflater.inflate(R.layout.child_header, null);
         }
 
-        String dateText = "";
+        //create fields for the text headers
+        String dateText;
         Calendar day = new GregorianCalendar();
 
+        //determine the type of header (offline, today or any day in the past)
         switch(this.headerPosition) {
             //first tab: offline programs
             case 1:
@@ -127,6 +129,7 @@ public class HeaderAdapter implements ListAdapter {
                 day.add(Calendar.DAY_OF_MONTH,(-headerPosition)+2);
                 dateText = DateFormat.format("cccc, dd.MM.yyyy", day).toString();
                 break;
+            //we should NEVER be here...
             default:
                 dateText = "Häää????";
                 break;

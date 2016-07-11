@@ -41,7 +41,7 @@ import java.util.ArrayList;
 public class StorageProvider extends SQLiteOpenHelper {
 
     /* debug settings */
-    private final static boolean D = false;
+    private final static boolean D = true;
     private final static String TAG = "StorageProvider";
 
     private static final String DATABASE_NAME = "PublicStream";
@@ -62,6 +62,7 @@ public class StorageProvider extends SQLiteOpenHelper {
     //database for SSIDs (corresponding to one route)
     public static final String KEY_LISTENED_ROWID = "_id";
     public static final String KEY_LISTENED_ID = "programid";
+    public static final String KEY_LISTENED_DATE = "programDate";
 
     /** static string to create the offline table */
     private static final String OFFLINE_TABLE_CREATE =
@@ -79,7 +80,8 @@ public class StorageProvider extends SQLiteOpenHelper {
     private static final String LISTENED_TABLE_CREATE =
             "CREATE TABLE " + LISTENED_TABLE_NAME + " (" +
                     KEY_LISTENED_ROWID + " INTEGER PRIMARY KEY ASC," +
-                    KEY_LISTENED_ID + " TEXT" +
+                    KEY_LISTENED_ID + " TEXT," +
+                    KEY_LISTENED_DATE + " TEXT" +
                     ");";
 
 
@@ -94,12 +96,12 @@ public class StorageProvider extends SQLiteOpenHelper {
      * @param id The id of the program which should be determined to be already listened to
      * @return is this program already listened to the end?
      */
-    public boolean isListened(String id) {
+    public boolean isListened(String id, String date) {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor cursor = db.query(LISTENED_TABLE_NAME, new String[]{KEY_LISTENED_ROWID, KEY_LISTENED_ID},
-                KEY_LISTENED_ID + "='" + id + "'", null, null, null, null);
+                KEY_LISTENED_ID + "='" + id + "' AND " + KEY_LISTENED_DATE + "='" + date + "'", null, null, null, null);
         if(cursor != null && cursor.getCount() > 0) {
-            if(D) Log.d(TAG, "Program is listened: " + id);
+            if(D) Log.d(TAG, "Program is listened: " + id + "," + date);
             cursor.close();
             return true;
         } else {
@@ -113,15 +115,16 @@ public class StorageProvider extends SQLiteOpenHelper {
      *
      * @param id ID of the program (ORFProgram.id)
      */
-    public void setListened(String id) {
+    public void setListened(String id, String date) {
         if(id == null) return;
         if(id.equals("")) return;
 
-        if(D) Log.d(TAG, "Program set listened: " + id);
+        if(D) Log.d(TAG, "Program set listened: " + id + "," + date);
 
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues content = new ContentValues();
         content.put(KEY_LISTENED_ID,id);
+        content.put(KEY_LISTENED_DATE,date);
         db.insert(LISTENED_TABLE_NAME,null,content);
     }
 
@@ -213,7 +216,7 @@ public class StorageProvider extends SQLiteOpenHelper {
                 program.info = result.getString(result.getColumnIndex(KEY_OFFLINE_INFO));
                 program.url = result.getString(result.getColumnIndex(KEY_OFFLINE_URL));
                 program.dayLabel = result.getString(result.getColumnIndex(KEY_OFFLINE_DAYLABEL));
-                program.isListened = this.isListened(String.valueOf(program.id));
+                program.isListened = this.isListened(String.valueOf(program.id),program.dayLabel);
 
                 list.add(program);
 

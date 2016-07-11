@@ -471,6 +471,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    private class DownloadNotificationCancelTask implements Runnable {
+        int notificationId;
+
+        public void setId(int id) {
+            this.notificationId = id;
+        }
+
+
+        @Override
+        public void run() {
+            //fetch the notification manager
+            NotificationManager mNotificationManager =
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            //cancel the given notificaiton
+            mNotificationManager.cancel(this.notificationId);
+        }
+    }
+
+
     private class DownloadProgramTask extends AsyncTask<ORFParser.ORFProgram, Integer, Void> {
         int notificationId = NOTIFICATION_DOWNLOAD_ID;
 
@@ -579,6 +598,11 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
                     });
+
+                    //start a timer to cancel the notification after a few minutes
+                    DownloadNotificationCancelTask cancelTask = new DownloadNotificationCancelTask();
+                    cancelTask.setId(this.notificationId);
+                    handler.postDelayed(cancelTask,Integer.valueOf(settings.getString(getString(R.string.SETTINGS_DOWNLOADNOTECANCEL),"20"))*1000);
                 } else {
                     runOnUiThread(new Runnable() {
                         public void run() {
@@ -624,8 +648,11 @@ public class MainActivity extends AppCompatActivity {
         currentDownloadNotificationId++;
         //store the current id to the fragment
         dataFragment.setCurrentDownloadNotificationId(currentDownloadNotificationId);
-        //create a new AsyncTask
-        new DownloadProgramTask(currentDownloadNotificationId).execute(child);
+
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB)
+            new DownloadProgramTask(currentDownloadNotificationId).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, child);
+        else
+            new DownloadProgramTask(currentDownloadNotificationId).execute(child);
     }
 
     @Override
@@ -1071,26 +1098,35 @@ public class MainActivity extends AppCompatActivity {
                     //-) StorageProvider
                     //-) The containing ArrayList of programs
                     if(currentProgram != null) {
-                        store.setListened(String.valueOf(currentProgram.id));
+                        store.setListened(String.valueOf(currentProgram.id),currentProgram.dayLabel);
                         currentProgram.isListened = true;
 
-                        if (programListOffline.get(currentPosition).id == currentProgram.id)
+                        if (programListOffline.size() > currentPosition &&
+                                programListOffline.get(currentPosition).id == currentProgram.id)
                             programListOffline.set(currentPosition, currentProgram);
-                        if (programListToday.get(currentPosition).id == currentProgram.id)
+                        if (programListToday.size() > currentPosition &&
+                                programListToday.get(currentPosition).id == currentProgram.id)
                             programListToday.set(currentPosition, currentProgram);
-                        if (programListTodayMinus1.get(currentPosition).id == currentProgram.id)
+                        if (programListTodayMinus1.size() > currentPosition &&
+                                programListTodayMinus1.get(currentPosition).id == currentProgram.id)
                             programListTodayMinus1.set(currentPosition, currentProgram);
-                        if (programListTodayMinus2.get(currentPosition).id == currentProgram.id)
+                        if (programListTodayMinus2.size() > currentPosition &&
+                                programListTodayMinus2.get(currentPosition).id == currentProgram.id)
                             programListTodayMinus2.set(currentPosition, currentProgram);
-                        if (programListTodayMinus3.get(currentPosition).id == currentProgram.id)
+                        if (programListTodayMinus3.size() > currentPosition &&
+                                programListTodayMinus3.get(currentPosition).id == currentProgram.id)
                             programListTodayMinus3.set(currentPosition, currentProgram);
-                        if (programListTodayMinus4.get(currentPosition).id == currentProgram.id)
+                        if (programListTodayMinus4.size() > currentPosition &&
+                                programListTodayMinus4.get(currentPosition).id == currentProgram.id)
                             programListTodayMinus4.set(currentPosition, currentProgram);
-                        if (programListTodayMinus5.get(currentPosition).id == currentProgram.id)
+                        if (programListTodayMinus5.size() > currentPosition &&
+                                programListTodayMinus5.get(currentPosition).id == currentProgram.id)
                             programListTodayMinus5.set(currentPosition, currentProgram);
-                        if (programListTodayMinus6.get(currentPosition).id == currentProgram.id)
+                        if (programListTodayMinus6.size() > currentPosition &&
+                                programListTodayMinus6.get(currentPosition).id == currentProgram.id)
                             programListTodayMinus6.set(currentPosition, currentProgram);
-                        if (programListTodayMinus7.get(currentPosition).id == currentProgram.id)
+                        if (programListTodayMinus7.size() > currentPosition &&
+                                programListTodayMinus7.get(currentPosition).id == currentProgram.id)
                             programListTodayMinus7.set(currentPosition, currentProgram);
                         ViewPager mViewPager = (ViewPager) findViewById(R.id.container);
                         mViewPager.getAdapter().notifyDataSetChanged();
