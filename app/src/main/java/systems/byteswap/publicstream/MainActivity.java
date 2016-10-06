@@ -54,6 +54,7 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.os.EnvironmentCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v4.app.NotificationCompat;
@@ -517,10 +518,11 @@ public class MainActivity extends AppCompatActivity {
                 //TODO: external storage? is jetzt nicht die SD Karte...
                 String settingsPath = settings.getString(getString(R.string.SETTINGS_DOWNLOADFOLDER), Environment.getExternalStorageDirectory().toString());
                 if (settingsPath.equals(""))
-                    settingsPath = Environment.getExternalStorageDirectory().toString();
+                    settingsPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).toString();
 
                 File folder = new File(settingsPath + "/Ö1-Beiträge");
                 fileName = child.dayLabel + "-" + child.time.replace(':', '.') + "-" + child.shortTitle.replace('/','_') + ".mp3";
+                Log.d("DOWNLOAD","Download to: " + settingsPath + "/Ö1-Beiträge/" + fileName);
                 folder.mkdirs();
 
                 File file = new File(folder, fileName);

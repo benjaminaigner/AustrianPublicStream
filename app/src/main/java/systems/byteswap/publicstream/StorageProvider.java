@@ -248,6 +248,6 @@ public class StorageProvider extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
+        //TODO: on upgrade should be implemented...
     }
 }

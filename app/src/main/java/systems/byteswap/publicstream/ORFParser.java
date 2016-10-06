@@ -105,15 +105,14 @@ public class ORFParser {
                 JSONObject programItems = programListJSON.getJSONObject(i);
                 //create a temp object
                 ORFProgram currentProgram = new ORFProgram();
-
                 //add all parameters
-                currentProgram.id = Integer.valueOf((String)programItems.get("id"));
-                currentProgram.time = (String)programItems.get("time");
-                currentProgram.title = (String)programItems.get("title");
-                currentProgram.shortTitle = (String)programItems.get("short_title");
-                currentProgram.info = (String)programItems.get("info");
-                currentProgram.url = (String)programItems.get("url_stream");
-                currentProgram.dayLabel = (String)programItems.get("day_label");
+                currentProgram.id = Integer.valueOf(programItems.get("id").toString());
+                currentProgram.time = programItems.get("time").toString();
+                currentProgram.title = programItems.get("title").toString();
+                currentProgram.shortTitle = programItems.get("short_title").toString();
+                currentProgram.info = programItems.get("info").toString();
+                currentProgram.url = programItems.get("url_stream").toString();
+                currentProgram.dayLabel = programItems.get("day_label").toString();
                 if(store != null) {
                     currentProgram.isListened = store.isListened(String.valueOf(currentProgram.id), currentProgram.dayLabel);
 
